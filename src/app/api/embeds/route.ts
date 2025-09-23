@@ -221,152 +221,139 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Add this helper function at the top of your file or in a shared utils file.
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
+ * Generates a GIF preview for a Twitch clip of a VIP using the FreeConvert API.
+ * It fetches the latest clip for the VIP, generates a GIF, and caches the result.
+ *
+ * @param vip The VIP user object. Must contain `twitchId` and `displayName`.
+ * @returns A promise that resolves to a ClipPreview object.
+ */
 async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
-  const {
-    SHOTSTACK_API_KEY,
-    SHOTSTACK_API_URL = "https://api.shotstack.io/v1",
-    GCP_STORAGE_BUCKET,
-  } = process.env;
-
-  if (!SHOTSTACK_API_KEY) {
-    console.error("Shotstack API key is not configured.");
-    return { sourceClipUrl: null, gifUrl: null, note: "Shotstack API key missing." };
-  }
-
-  if (!GCP_STORAGE_BUCKET) {
-    console.warn("GCP_STORAGE_BUCKET is not configured. GIFs will be stored on Shotstack temporarily.");
-  }
-
-  const db = getAdminDb();
-
   try {
     // 1. Fetch the latest clip from Twitch
     const clips = await getTwitchClips(vip.twitchId, 1);
-    if (!clips || clips.length === 0) {
+    if (!clips || !clips.length) {
       return { sourceClipUrl: null, gifUrl: null, note: "No recent clips found." };
     }
     const clip = clips[0];
-    const mp4Url = clip.thumbnail_url.replace(/-preview-.*\.jpg$/, ".mp4");
+    const username = vip.displayName;
 
-    // --- Caching Logic Start ---
-    const cacheRef = db.collection("shotstackCache").doc(clip.id);
+    // 2. Check cache (using Firestore)
+    const db = getAdminDb();
+    const cacheRef = db.collection("gifPreviews").doc(clip.id);
     const cacheDoc = await cacheRef.get();
-
     if (cacheDoc.exists) {
-      const cachedData = cacheDoc.data();
-      if (cachedData?.gifUrl) {
-        console.log(`[Cache HIT] Found existing GIF for clip ${clip.id}`);
+      const data = cacheDoc.data();
+      if (data?.gifUrl) {
+        console.log(`[Cache HIT] Using cached GIF for clip ${clip.id}`);
         return {
           sourceClipUrl: `https://clips.twitch.tv/${clip.id}`,
-          gifUrl: cachedData.gifUrl,
+          gifUrl: data.gifUrl,
           note: "from cache",
         };
       }
     }
-    console.log(`[Cache MISS] Generating new GIF for clip ${clip.id}`);
-    // --- Caching Logic End ---
 
-    const gcsDestination = GCP_STORAGE_BUCKET
-      ? [
-          {
-            provider: "google-cloud-storage",
-            options: {
-              bucket: GCP_STORAGE_BUCKET,
-              prefix: "vip-previews/",
-              filename: `${clip.id}.gif`,
-            },
-          },
-          {
-            provider: "shotstack",
-            exclude: true,
-          },
-        ]
-      : [];
+    console.log(`[Cache MISS] Generating new GIF for clip ${clip.id} for user ${username}`);
 
-    // 2. Call Shotstack to convert MP4 to GIF
-    const edit: Record<string, any> = {
-      timeline: {
-        background: "#000000",
-        tracks: [
-          {
-            clips: [
-              {
-                asset: { type: "video", src: mp4Url },
-                start: 0,
-                length: clip.duration,
-              },
-            ],
+    if (!process.env.FREE_CONVERT_API_KEY) {
+      return { sourceClipUrl: null, gifUrl: null, note: "FreeConvert API key missing." };
+    }
+
+    // 3. Construct the MP4 URL from the Twitch clip's thumbnail URL.
+    const mp4Url = clip.thumbnail_url.replace(/-preview-\d+x\d+\.jpg$/, ".mp4");
+
+    // 4. Define the job payload for the FreeConvert API.
+    const jobPayload = {
+      tasks: {
+        "import-url": { operation: "import/url", url: mp4Url },
+        "convert-gif": {
+          operation: "convert",
+          input: "import-url",
+          input_format: "mp4",
+          output_format: "gif",
+          options: {
+            video_custom_width_gif: 400,
+            gif_fps: "15",
+            video_to_gif_compression: "80",
+            video_to_gif_optimize_static_bg: false,
+            video_to_gif_transparency: false,
           },
-        ],
-      },
-      output: {
-        format: "gif",
-        size: { width: 480, height: 270 },
-        fps: 15,
+        },
+        "export-url": {
+          operation: "export/url",
+          input: ["convert-gif"],
+          filename: `${clip.id}-preview.gif`,
+        },
       },
     };
 
-    if (gcsDestination.length > 0) {
-      edit.destinations = gcsDestination;
-    }
-
-    const renderResponse = await fetch(`${SHOTSTACK_API_URL}/render`, {
-      method: "POST",
+    // 5. Create the job on FreeConvert.
+    const createJobResponse = await fetch("https://api.freeconvert.com/v1/process/jobs", {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "x-api-key": SHOTSTACK_API_KEY,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${process.env.FREE_CONVERT_API_KEY}`
       },
-      body: JSON.stringify(edit),
+      body: JSON.stringify(jobPayload)
     });
 
-    if (!renderResponse.ok) {
-      const errorText = await renderResponse.text();
-      throw new Error(`Shotstack render submission failed: ${errorText}`);
+    if (!createJobResponse.ok) {
+      const errorText = await createJobResponse.text();
+      throw new Error(`FreeConvert job creation failed with status ${createJobResponse.status}: ${errorText}`);
     }
 
-    const { response: render } = await renderResponse.json();
-    const renderId = render.id;
+    const job = await createJobResponse.json();
+    const jobId = job.id;
+    console.log(`Started FreeConvert job ${jobId} for clip ${clip.id}`);
 
-    // 3. Poll for render status (consider webhooks for production)
-    let status = render.status;
-    let gifUrl: string | null = null;
-    const maxAttempts = 20; // ~100 seconds max wait
-    let attempt = 0;
+    // 6. Poll for job completion.
+    const maxRetries = 24; // Poll for a maximum of 24 * 5 = 120 seconds.
+    for (let i = 0; i < maxRetries; i++) {
+      await sleep(5000); // Wait 5 seconds between polls.
 
-    while (status !== "done" && status !== "failed" && attempt < maxAttempts) {
-      await delay(5000); // Wait 5 seconds between polls
-      const statusResponse = await fetch(`${SHOTSTACK_API_URL}/render/${renderId}`, {
-        headers: { "x-api-key": SHOTSTACK_API_KEY },
-      });
-      const { response: statusData } = await statusResponse.json();
-      status = statusData.status;
-      if (status === "done") {
-        if (GCP_STORAGE_BUCKET) {
-          gifUrl = `https://storage.googleapis.com/${GCP_STORAGE_BUCKET}/vip-previews/${clip.id}.gif`;
-        } else {
-          gifUrl = statusData.url;
+      const statusResponse = await fetch(`https://api.freeconvert.com/v1/process/jobs/${jobId}`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${process.env.FREE_CONVERT_API_KEY}`,
         }
+      });
+
+      if (!statusResponse.ok) {
+        console.warn(`Failed to get job status for ${jobId} (status: ${statusResponse.status}), retrying...`);
+        continue;
       }
-      attempt++;
+
+      const jobStatus = await statusResponse.json();
+
+      if (jobStatus.status === "completed") {
+        const exportTask = jobStatus.tasks.find((task: any) => task.name === "export-url");
+        if (exportTask?.result?.url) {
+          const gifUrl = exportTask.result.url;
+
+          // 7. Cache the result and return.
+          await cacheRef.set({ gifUrl, createdAt: new Date().toISOString() });
+          console.log(`Successfully generated and cached GIF for clip ${clip.id}`);
+          return {
+            sourceClipUrl: `https://clips.twitch.tv/${clip.id}`,
+            gifUrl: gifUrl,
+            note: null,
+          };
+        } else {
+          throw new Error(`FreeConvert job ${jobId} completed, but no export URL was found.`);
+        }
+      } else if (jobStatus.status === "failed") {
+        const failedTask = jobStatus.tasks.find((task: any) => task.status === "failed");
+        const reason = failedTask?.result?.message ?? "Unknown reason";
+        throw new Error(`FreeConvert job ${jobId} failed: ${reason}`);
+      }
     }
 
-    if (status !== "done" || !gifUrl) {
-      throw new Error(`Shotstack render did not complete in time. Status: ${status}`);
-    }
-
-    // --- Caching Logic Start ---
-    await cacheRef.set({
-      createdAt: new Date().toISOString(),
-      sourceClipUrl: `https://clips.twitch.tv/${clip.id}`,
-      gifUrl: gifUrl,
-    });
-    // --- Caching Logic End ---
-
-    return {
-      sourceClipUrl: `https://clips.twitch.tv/${clip.id}`,
-      gifUrl: gifUrl,
-      note: null,
-    };
+    throw new Error(`FreeConvert job ${jobId} timed out after ${maxRetries * 5} seconds.`);
   } catch (error) {
     console.error(`Error creating clip preview for ${vip.displayName}:`, error);
     const message = error instanceof Error ? error.message : "Unknown error";
