@@ -217,6 +217,10 @@ function chunkEmbeds(embeds: EmbedObject[], maxPerMessage: number) {
   return messages;
 }
 
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
   const {
     SHOTSTACK_API_KEY,
@@ -233,6 +237,8 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
     console.warn("GCP_STORAGE_BUCKET is not configured. GIFs will be stored on Shotstack temporarily.");
   }
 
+  const db = getAdminDb();
+
   try {
     // 1. Fetch the latest clip from Twitch
     const clips = await getTwitchClips(vip.twitchId, 1);
@@ -241,6 +247,24 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
     }
     const clip = clips[0];
     const mp4Url = clip.thumbnail_url.replace(/-preview-.*\.jpg$/, ".mp4");
+
+    // --- Caching Logic Start ---
+    const cacheRef = db.collection("shotstackCache").doc(clip.id);
+    const cacheDoc = await cacheRef.get();
+
+    if (cacheDoc.exists) {
+      const cachedData = cacheDoc.data();
+      if (cachedData?.gifUrl) {
+        console.log(`[Cache HIT] Found existing GIF for clip ${clip.id}`);
+        return {
+          sourceClipUrl: `https://clips.twitch.tv/${clip.id}`,
+          gifUrl: cachedData.gifUrl,
+          note: "from cache",
+        };
+      }
+    }
+    console.log(`[Cache MISS] Generating new GIF for clip ${clip.id}`);
+    // --- Caching Logic End ---
 
     const gcsDestination = GCP_STORAGE_BUCKET
       ? [
@@ -258,8 +282,6 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
           },
         ]
       : [];
-
-    // TODO: Implement caching here. Before rendering, check if a GIF for `clip.id` already exists.
 
     // 2. Call Shotstack to convert MP4 to GIF
     const edit: Record<string, any> = {
@@ -332,7 +354,13 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
       throw new Error(`Shotstack render did not complete in time. Status: ${status}`);
     }
 
-    // TODO: Store the final gifUrl in your cache (e.g., Firestore) with `clip.id` as the key.
+    // --- Caching Logic Start ---
+    await cacheRef.set({
+      createdAt: new Date().toISOString(),
+      sourceClipUrl: `https://clips.twitch.tv/${clip.id}`,
+      gifUrl: gifUrl,
+    });
+    // --- Caching Logic End ---
 
     return {
       sourceClipUrl: `https://clips.twitch.tv/${clip.id}`,
@@ -575,10 +603,6 @@ async function dispatchMessagesToDiscord(messages: MessageBlock[], channelId: st
   return ids;
 }
 
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function persistVipLiveConfig(
   payload: EmbedRequestPayload,
   responsePayload: EmbedResponsePayload,
@@ -628,6 +652,70 @@ async function persistVipLiveConfig(
     await settingsRef.set(data, { merge: true });
   } catch (error) {
     console.error("Failed to persist VIP live embed configuration", error);
+  }
+}
+
+async function getVipLiveConfig(guildId: string): Promise<{ lastDispatchMessageIds?: string[] } | null> {
+  if (!guildId) {
+    return null;
+  }
+  try {
+    const db = getAdminDb();
+    const docRef = db
+      .collection("communities")
+      .doc(guildId)
+      .collection("settings")
+      .doc(VIP_LIVE_CONFIG_DOC_ID);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return null;
+    }
+    return doc.data() as { lastDispatchMessageIds?: string[] };
+  } catch (error) {
+    console.error("Failed to retrieve VIP live embed configuration", error);
+    return null;
+  }
+}
+
+async function deleteDiscordMessages(channelId: string, messageIds: string[]) {
+  if (messageIds.length === 0) {
+    return;
+  }
+
+  const botToken = process.env.DISCORD_BOT_TOKEN;
+  if (!botToken) {
+    throw new Error("DISCORD_BOT_TOKEN is not configured.");
+  }
+  const userAgent = process.env.DISCORD_USER_AGENT ?? "SpectraSyncBot/1.0 (+https://spectrasync.app)";
+
+  if (messageIds.length === 1) {
+    const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages/${messageIds[0]}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bot ${botToken}`,
+        "User-Agent": userAgent,
+      },
+    });
+    if (!response.ok && response.status !== 404) {
+      const text = await response.text();
+      console.warn(`Failed to delete single Discord message ${messageIds[0]}: ${text}`);
+    }
+    return;
+  }
+
+  const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages/bulk-delete`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bot ${botToken}`,
+      "Content-Type": "application/json",
+      "User-Agent": userAgent,
+    },
+    body: JSON.stringify({ messages: messageIds.slice(0, 100) }), // API limit is 100
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.warn(`Discord bulk delete failed (status ${response.status}), possibly because messages were already gone: ${text}`);
   }
 }
 
@@ -698,6 +786,16 @@ async function handleEmbedRequest(request: NextRequest) {
         dispatchSummary = { status: "skipped", reason: "No messages to dispatch" };
       } else {
         try {
+          const config = await getVipLiveConfig(payload.guildId);
+          const oldMessageIds = config?.lastDispatchMessageIds ?? [];
+
+          if (oldMessageIds.length > 0) {
+            console.log(
+              `Deleting ${oldMessageIds.length} old VIP live messages from channel ${payload.channelId}.`,
+            );
+            await deleteDiscordMessages(payload.channelId, oldMessageIds);
+          }
+
           const messageIds = await dispatchMessagesToDiscord(
             maybeMessages as MessageBlock[],
             payload.channelId,

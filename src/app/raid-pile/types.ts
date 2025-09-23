@@ -13,6 +13,7 @@ export type LiveUser = {
   vipMessage?: string; // Custom message for VIPs
   points?: number; // User's total points
   started_at?: string; // Stream start time from Twitch
+  streamPreviewUrl?: string; // Live stream preview image
 };
 
 // Define the structure of a single Raid Pile for the UI

@@ -291,12 +291,14 @@ export async function saveAdminTwitchInfo(adminDiscordId: string, twitchUsername
 
 
 // This is a placeholder for a more advanced function that would get live status from Twitch
-export async function getLiveUsersFromTwitch(userIds: string[]): Promise<{ [key: string]: Pick<LiveUser, 'latestGameName' | 'latestViewerCount' | 'latestStreamTitle' | 'started_at'> }> {
+export async function getLiveUsersFromTwitch(
+  userIds: string[],
+): Promise<{ [key: string]: Omit<LiveUser, "twitchId" | "twitchLogin" | "displayName" | "avatarUrl"> }> {
     if (userIds.length === 0) return {};
     
     const streams = await getTwitchStreams(userIds);
 
-    const liveData: { [key: string]: Pick<LiveUser, 'latestGameName' | 'latestViewerCount' | 'latestStreamTitle' | 'started_at'> } = {};
+    const liveData: { [key: string]: Omit<LiveUser, "twitchId" | "twitchLogin" | "displayName" | "avatarUrl"> } = {};
 
     streams.forEach(stream => {
         liveData[stream.user_id] = {
@@ -304,6 +306,7 @@ export async function getLiveUsersFromTwitch(userIds: string[]): Promise<{ [key:
             latestViewerCount: stream.viewer_count,
             latestStreamTitle: stream.title,
             started_at: stream.started_at,
+            streamPreviewUrl: stream.thumbnail_url?.replace('{width}', '440').replace('{height}', '248'),
         };
     });
 
@@ -815,12 +818,3 @@ export async function addPointsToAdmin(guildId: string, adminDiscordId: string, 
     return { success: false, error: errorMessage };
   }
 }
-
-
-
-
-
-
-
-
-

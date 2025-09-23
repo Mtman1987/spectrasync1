@@ -58,6 +58,9 @@ export async function sendVipLiveNotification(guildId: string, vip: LiveUser) {
       thumbnail: {
         url: vip.avatarUrl,
       },
+      image: vip.streamPreviewUrl
+        ? { url: `${vip.streamPreviewUrl}?t=${Date.now()}` } // Add timestamp to bust cache
+        : undefined,
       footer: {
         text: 'Powered by Cosmic Raid',
       },
