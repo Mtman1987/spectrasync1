@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/embeds?type=vip-live&guildId=YOUR_GUILD_ID&channelId=YOUR_CHANNEL_ID&dispatch=true&secret=YOUR_BOT_SECRET",
+      "schedule": "*/7 * * * *"
+    }
+  ]
+}

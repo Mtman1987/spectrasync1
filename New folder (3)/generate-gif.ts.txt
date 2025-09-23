@@ -32,9 +32,9 @@ const generateGifFlow = ai.defineFlow(
     outputSchema: GenerateGifOutputSchema,
   },
   async ({ videoUrl }) => {
-    const apiKey = "dZkvBvD5sFp9uGfXgWvYeVfL8S34f3G0T6n4bA2p";
+    const apiKey = process.env.SHOTSTACK_API_KEY;
     if (!apiKey) {
-      throw new Error('Shotstack API key is not configured in environment variables.');
+      throw new Error('SHOTSTACK_API_KEY is not configured in environment variables.');
     }
 
     const apiUrl = 'https://api.shotstack.io/v1';

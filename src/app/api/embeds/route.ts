@@ -3,7 +3,7 @@ import { format } from "date-fns";
 
 import { buildCalendarEmbed } from "@/app/calendar/actions";
 import { buildLeaderboardEmbed } from "@/app/leaderboard/actions";
-import { getLiveVipUsers } from "@/app/actions";
+import { getLiveVipUsers, getTwitchClips } from "@/app/actions";
 import { getAdminDb } from "@/lib/firebase-admin";
 import type { LiveUser } from "@/app/raid-pile/types";
 
@@ -98,7 +98,14 @@ function validateSecret(request: NextRequest) {
     return { valid: true };
   }
 
-  const providedSecret = request.headers.get("x-bot-secret") ?? request.headers.get("authorization");
+  let providedSecret =
+    request.headers.get("x-bot-secret") ?? request.headers.get("authorization");
+
+  // For GET requests from cron jobs, also check query parameters
+  if (!providedSecret && request.method === "GET") {
+    providedSecret = request.nextUrl.searchParams.get("secret");
+  }
+
   if (!providedSecret) {
     return { valid: false };
   }
@@ -210,6 +217,135 @@ function chunkEmbeds(embeds: EmbedObject[], maxPerMessage: number) {
   return messages;
 }
 
+async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
+  const {
+    SHOTSTACK_API_KEY,
+    SHOTSTACK_API_URL = "https://api.shotstack.io/v1",
+    GCP_STORAGE_BUCKET,
+  } = process.env;
+
+  if (!SHOTSTACK_API_KEY) {
+    console.error("Shotstack API key is not configured.");
+    return { sourceClipUrl: null, gifUrl: null, note: "Shotstack API key missing." };
+  }
+
+  if (!GCP_STORAGE_BUCKET) {
+    console.warn("GCP_STORAGE_BUCKET is not configured. GIFs will be stored on Shotstack temporarily.");
+  }
+
+  try {
+    // 1. Fetch the latest clip from Twitch
+    const clips = await getTwitchClips(vip.twitchId, 1);
+    if (!clips || clips.length === 0) {
+      return { sourceClipUrl: null, gifUrl: null, note: "No recent clips found." };
+    }
+    const clip = clips[0];
+    const mp4Url = clip.thumbnail_url.replace(/-preview-.*\.jpg$/, ".mp4");
+
+    const gcsDestination = GCP_STORAGE_BUCKET
+      ? [
+          {
+            provider: "google-cloud-storage",
+            options: {
+              bucket: GCP_STORAGE_BUCKET,
+              prefix: "vip-previews/",
+              filename: `${clip.id}.gif`,
+            },
+          },
+          {
+            provider: "shotstack",
+            exclude: true,
+          },
+        ]
+      : [];
+
+    // TODO: Implement caching here. Before rendering, check if a GIF for `clip.id` already exists.
+
+    // 2. Call Shotstack to convert MP4 to GIF
+    const edit: Record<string, any> = {
+      timeline: {
+        background: "#000000",
+        tracks: [
+          {
+            clips: [
+              {
+                asset: { type: "video", src: mp4Url },
+                start: 0,
+                length: clip.duration,
+              },
+            ],
+          },
+        ],
+      },
+      output: {
+        format: "gif",
+        size: { width: 480, height: 270 },
+        fps: 15,
+      },
+    };
+
+    if (gcsDestination.length > 0) {
+      edit.destinations = gcsDestination;
+    }
+
+    const renderResponse = await fetch(`${SHOTSTACK_API_URL}/render`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": SHOTSTACK_API_KEY,
+      },
+      body: JSON.stringify(edit),
+    });
+
+    if (!renderResponse.ok) {
+      const errorText = await renderResponse.text();
+      throw new Error(`Shotstack render submission failed: ${errorText}`);
+    }
+
+    const { response: render } = await renderResponse.json();
+    const renderId = render.id;
+
+    // 3. Poll for render status (consider webhooks for production)
+    let status = render.status;
+    let gifUrl: string | null = null;
+    const maxAttempts = 20; // ~100 seconds max wait
+    let attempt = 0;
+
+    while (status !== "done" && status !== "failed" && attempt < maxAttempts) {
+      await delay(5000); // Wait 5 seconds between polls
+      const statusResponse = await fetch(`${SHOTSTACK_API_URL}/render/${renderId}`, {
+        headers: { "x-api-key": SHOTSTACK_API_KEY },
+      });
+      const { response: statusData } = await statusResponse.json();
+      status = statusData.status;
+      if (status === "done") {
+        if (GCP_STORAGE_BUCKET) {
+          gifUrl = `https://storage.googleapis.com/${GCP_STORAGE_BUCKET}/vip-previews/${clip.id}.gif`;
+        } else {
+          gifUrl = statusData.url;
+        }
+      }
+      attempt++;
+    }
+
+    if (status !== "done" || !gifUrl) {
+      throw new Error(`Shotstack render did not complete in time. Status: ${status}`);
+    }
+
+    // TODO: Store the final gifUrl in your cache (e.g., Firestore) with `clip.id` as the key.
+
+    return {
+      sourceClipUrl: `https://clips.twitch.tv/${clip.id}`,
+      gifUrl: gifUrl,
+      note: null,
+    };
+  } catch (error) {
+    console.error(`Error creating clip preview for ${vip.displayName}:`, error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return { sourceClipUrl: null, gifUrl: null, note: `Failed to generate GIF: ${message}` };
+  }
+}
+
 function pickVipTarget(liveVips: LiveUser[], payload: EmbedRequestPayload) {
   const requestedId = typeof payload.vipId === "string" ? payload.vipId : undefined;
   const requestedLogin =
@@ -238,15 +374,6 @@ function pickVipOrdering(liveVips: LiveUser[], payload: EmbedRequestPayload) {
     return [...liveVips];
   }
   return [primary, ...liveVips.filter((vip) => vip !== primary)];
-}
-
-function getClipPreviewPlaceholder(vip: LiveUser): ClipPreview {
-  void vip;
-  return {
-    sourceClipUrl: null,
-    gifUrl: null,
-    note: "TODO: Fetch Twitch clip, convert via Shotstack, store in Firebase Storage, and embed autoplay GIF URL.",
-  };
 }
 
 async function buildVipLiveEmbed(payload: EmbedRequestPayload): Promise<EmbedResponsePayload> {
@@ -303,10 +430,15 @@ async function buildVipLiveEmbed(payload: EmbedRequestPayload): Promise<EmbedRes
       timestamp: isoNow,
     });
   } else {
-    ordered.slice(0, MAX_VIP_CARDS).forEach((vip, index) => {
+    const vipsToProcess = ordered.slice(0, MAX_VIP_CARDS);
+
+    // Fetch all clip previews in parallel
+    const clipPreviews = await Promise.all(vipsToProcess.map((vip) => getClipPreview(vip)));
+
+    vipsToProcess.forEach((vip, index) => {
       const viewerCount = typeof vip.latestViewerCount === "number" ? vip.latestViewerCount : 0;
       const startedAtText = formatStartedAt(vip.started_at);
-      const clipPreview = getClipPreviewPlaceholder(vip);
+      const clipPreview = clipPreviews[index]; // Use the fetched preview
 
       const fields: Array<{ name: string; value: string; inline?: boolean }> = [
         { name: "Streaming", value: vip.latestGameName || "N/A", inline: true },
@@ -317,7 +449,7 @@ async function buildVipLiveEmbed(payload: EmbedRequestPayload): Promise<EmbedRes
         fields.push({ name: "VIP Message", value: vip.vipMessage.trim(), inline: false });
       }
 
-      cardEmbeds.push({
+      const embed: EmbedObject = {
         title: `${index + 1}. ${vip.displayName}`,
         url: vip.twitchLogin ? `https://twitch.tv/${vip.twitchLogin}` : undefined,
         description: vip.latestStreamTitle || "Streaming now!",
@@ -326,7 +458,19 @@ async function buildVipLiveEmbed(payload: EmbedRequestPayload): Promise<EmbedRes
         thumbnail: vip.avatarUrl ? { url: vip.avatarUrl } : undefined,
         footer: { text: `Live since ${startedAtText}` },
         timestamp: isoNow,
-      });
+      };
+
+      // Add the GIF to the embed if we got one
+      if (clipPreview.gifUrl) {
+        embed.image = { url: clipPreview.gifUrl };
+      }
+
+      // If there's a note (e.g., an error), add it to the footer for debugging
+      if (clipPreview.note) {
+        embed.footer = { text: `${embed.footer?.text} • ${clipPreview.note}` };
+      }
+
+      cardEmbeds.push(embed);
 
       cardsMeta.push({
         rank: index + 1,
@@ -487,7 +631,7 @@ async function persistVipLiveConfig(
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handleEmbedRequest(request: NextRequest) {
   try {
     const secretStatus = validateSecret(request);
     if (!secretStatus.valid) {
@@ -495,10 +639,28 @@ export async function POST(request: NextRequest) {
     }
 
     let rawPayload: unknown;
-    try {
-      rawPayload = await request.json();
-    } catch (error) {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    if (request.method === "POST") {
+      try {
+        rawPayload = await request.json();
+      } catch (error) {
+        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+      }
+    } else {
+      // GET
+      const query = request.nextUrl.searchParams;
+      const queryObject: Record<string, unknown> = {};
+      for (const [key, value] of query.entries()) {
+        if (value === "true") {
+          queryObject[key] = true;
+        } else if (value === "false") {
+          queryObject[key] = false;
+        } else if (!isNaN(Number(value)) && value.trim() !== "") {
+          queryObject[key] = Number(value);
+        } else {
+          queryObject[key] = value;
+        }
+      }
+      rawPayload = queryObject;
     }
 
     const payload = normalizePayload(rawPayload);
@@ -523,7 +685,7 @@ export async function POST(request: NextRequest) {
     let statusCode = 200;
     let dispatchSummary: DispatchSummary = { status: "skipped" };
 
-    if (payload.dispatch) {
+    if (payload.dispatch === true) {
       if (!payload.channelId || typeof payload.channelId !== "string" || !payload.channelId.trim()) {
         return NextResponse.json(
           { error: "channelId is required when dispatch is enabled" },
@@ -564,15 +726,16 @@ export async function POST(request: NextRequest) {
       { status: statusCode },
     );
   } catch (error) {
-    console.error("Error in /api/embeds route:", error);
+    console.error(`Error in /api/embeds route (${request.method}):`, error);
     const message = error instanceof Error ? error.message : "Unexpected error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-export function GET() {
-  return NextResponse.json(
-    { error: "Method not allowed" },
-    { status: 405, headers: { Allow: "POST" } },
-  );
+export async function POST(request: NextRequest) {
+  return handleEmbedRequest(request);
+}
+
+export async function GET(request: NextRequest) {
+  return handleEmbedRequest(request);
 }
