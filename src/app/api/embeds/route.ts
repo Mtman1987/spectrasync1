@@ -480,9 +480,19 @@ async function buildVipLiveEmbed(payload: EmbedRequestPayload): Promise<EmbedRes
         embed.image = { url: clipPreview.gifUrl };
       }
 
-      // If there's a note (e.g., an error), add it to the footer for debugging
+      // If there's a note (e.g., an error), add it to the footer for debugging.
+      // Access the existing footer text safely (EmbedObject is a loose Record),
+      // then replace the footer with a new object containing the combined text.
       if (clipPreview.note) {
-        embed.footer = { text: `${embed.footer?.text} • ${clipPreview.note}` };
+        const existingFooterText =
+          embed.footer && typeof embed.footer === "object" && "text" in embed.footer && typeof (embed.footer as any).text === "string"
+            ? (embed.footer as any).text
+            : "";
+
+        embed.footer = {
+          ...(embed.footer as Record<string, unknown>),
+          text: `${existingFooterText}${existingFooterText ? " • " : ""}${clipPreview.note}`,
+        };
       }
 
       cardEmbeds.push(embed);
