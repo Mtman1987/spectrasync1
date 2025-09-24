@@ -1,4 +1,3 @@
-
 # Cosmic Raid
 
 Welcome to Cosmic Raid, a Next.js application built with Firebase Studio. This suite of powerful tools is designed to help you manage, engage, and grow your Twitch community through seamless Discord integration.
@@ -24,10 +23,12 @@ This section covers everything you need to know to get your community set up and
 
 ### 1. Initial Setup & Configuration
 
-- **Run the App**:
+-- **Run the App**:
+
   ```bash
   npm run dev
   ```
+
   Open `http://localhost:9002` in your browser.
 
 - **Connect Your Admin Account**: The setup page will guide you. Click "Connect Discord Account" and authorize the app. You must be an administrator in the Discord server you wish to manage.
@@ -85,6 +86,94 @@ You earn points by being an active and supportive community member! Here are som
 - **Subscribing to a community member**
 - **Cheering with Bits**
 - **Contributing to a Hype Train**
+
+---
+
+## Environment variables & hosting
+
+This project relies on a set of environment variables for bot credentials, API keys, and runtime configuration. The repository keeps a local `.env` file for development (this file is gitignored). When deploying, set the same variables with your hosting provider's environment configuration.
+
+Minimum required environment variables:
+
+- `NEXT_PUBLIC_BASE_URL` - The public URL of your deployed app (example: `https://spcmtn--cosmic-raid-app.us-central1.hosted.app/`). Used for OAuth callbacks and links.
+- `BOT_SECRET_KEY` - Secret key used between your tools and the API endpoints (`x-bot-secret` or Authorization header). Keep this secret.
+- `DISCORD_BOT_TOKEN` - Your Discord bot token used to post/delete messages.
+- `FREE_CONVERT_API_KEY` - (Optional) API key for FreeConvert if you use the online GIF converter.
+
+Optional/advanced variables:
+
+- `DISCORD_USER_AGENT` - Custom User-Agent string for Discord API requests.
+- `DISCORD_API_BASE_URL` - Override Discord API base (defaults to `https://discord.com/api/v10`).
+- Firebase service account variables if your hosting requires them: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`.
+
+How to set env vars on common hosting providers:
+
+- Vercel: Project → Settings → Environment Variables → add variables and redeploy.
+- Google Cloud (Cloud Run/Firebase):
+  - Cloud Run: Console → Cloud Run → select your service → Edit & Deploy New Revision → Variables & Secrets → add variables → Deploy.
+  - Firebase Functions (legacy): use `firebase functions:config:set key=value` and then `firebase deploy --only functions` (modern deployments often use Cloud Run).
+- Netlify/Other: Look for Project Settings → Environment variables and add the keys.
+
+Local development:
+
+1. Copy `.env.example` to `.env` and fill in your values.
+
+1. From PowerShell (repo root) run:
+
+```powershell
+.\scripts\dev-with-tunnel.ps1
+```
+
+1. To test against your hosted site instead of starting a tunnel, run:
+
+```powershell
+.\scripts\dev-with-tunnel.ps1 -NoTunnel
+```
+
+Security reminder: never commit your `.env` file. Use your host's environment configuration for production secrets.
+
+If you'd like, I can produce a checklist of exact variable names and example values you can copy/paste into your hosting provider's environment settings. I can't upload them for you, but I can make it copy/paste-friendly.
+
+### Uploading your local `.env` to the app config (Firestore)
+
+If you'd like to store your environment variables in the database so the app can read them at runtime, you can use the provided upload script or call the admin endpoint directly. The admin endpoint is protected by `BOT_SECRET_KEY`.
+
+PowerShell (upload `.env` to app_settings/runtime):
+
+```powershell
+# From repo root, provide the app URL and bot secret (or set BOT_SECRET_KEY in your shell)
+.\scripts\upload-env.ps1 -EnvPath .\.env -Url https://spcmtn--cosmic-raid-app.us-central1.hosted.app -Secret <BOT_SECRET_KEY>
+```
+
+Curl (example):
+
+```bash
+# Build a JSON payload manually or programmatically. Example payload structure:
+cat <<EOF > payload.json
+{
+  "root": {
+    "NEXT_PUBLIC_BASE_URL": "https://spcmtn--cosmic-raid-app.us-central1.hosted.app/",
+    "DISCORD_BOT_TOKEN": "<your-bot-token>",
+    "FREE_CONVERT_API_KEY": "<optional>"
+  }
+}
+EOF
+
+curl -X POST "https://spcmtn--cosmic-raid-app.us-central1.hosted.app/api/admin/env" \
+  -H "Content-Type: application/json" \
+  -H "x-bot-secret: <BOT_SECRET_KEY>" \
+  --data @payload.json
+```
+
+After uploading, the app can read values with the runtime helper `getRuntimeValue` in `src/lib/runtime-config.ts`. Example usage in code:
+
+```ts
+import { getRuntimeValue } from "@/lib/runtime-config";
+
+const baseUrl = await getRuntimeValue<string>("NEXT_PUBLIC_BASE_URL", process.env.NEXT_PUBLIC_BASE_URL);
+```
+
+Security reminder: keep `BOT_SECRET_KEY` secret; do not commit it to source control.
 
 ---
 Built with passion by Mtman1987 & your AI Partner.

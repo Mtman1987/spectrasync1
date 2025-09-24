@@ -1,10 +1,47 @@
-﻿$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿param(
+    [switch]$NoTunnel,
+    [string]$Domain
+)
+
+$projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $projectRoot
 
 $port = 9002
-$domain = 'mtman.ngrok-free.dev'
+# default dev domain used for ngrok when tunneling
+$defaultNgrokDomain = 'mtman.ngrok-free.dev'
 
 $refreshProc = $null
+
+# Read NEXT_PUBLIC_BASE_URL from .env if present
+$envBaseUrl = $null
+try {
+    $envPath = Join-Path $projectRoot ".env"
+    if (Test-Path $envPath) {
+        Get-Content $envPath | ForEach-Object {
+            if ($_ -match '^\s*NEXT_PUBLIC_BASE_URL\s*=\s*(.+)\s*$') {
+                Set-Variable -Name envBaseUrl -Scope Script -Value ($matches[1].Trim())
+            }
+        }
+    }
+} catch {}
+
+# Decide whether to use tunnel. Default: use tunnel for local dev. If a hosted NEXT_PUBLIC_BASE_URL
+# is present and NoTunnel not explicitly set, skip starting ngrok and use the hosted URL.
+function Test-UseTunnel {
+    param([string]$envUrl, [switch]$noTunnel)
+    if ($noTunnel) { return $false }
+    if (-not $envUrl) { return $true }
+    if ($envUrl -match '^(https?://)?(localhost|127\.0\.0\.1)') { return $true }
+    return $false
+}
+
+$useTunnel = Test-UseTunnel -envUrl $envBaseUrl -noTunnel:$NoTunnel
+
+# Reference envBaseUrl to avoid linter 'assigned but not used' warnings (no-op)
+$null = $envBaseUrl
+
+# Allow domain override from parameter, fall back to default ngrok domain
+if ($Domain) { $ngrokDomain = $Domain } else { $ngrokDomain = $defaultNgrokDomain }
 
 function Stop-DevProcesses {
     Get-Process -Name ngrok -ErrorAction SilentlyContinue | Stop-Process -Force
@@ -41,20 +78,26 @@ function Stop-VipRefreshLoop {
     $refreshProc = $null
 }
 
-function Run-NpmDev {
+function Start-NpmDev {
     & cmd.exe /c "npm run dev"
 }
 
 while ($true) {
     Stop-DevProcesses
     Write-Host "Starting dev environment..." -ForegroundColor Cyan
-    $ngrokProc = Start-Process -FilePath ngrok -ArgumentList @('http', $port, '--domain', $domain) -PassThru -WindowStyle Hidden
-    Start-Sleep -Seconds 3
+    $ngrokProc = $null
+    if ($useTunnel) {
+        Write-Host "Starting ngrok tunnel for domain $ngrokDomain -> localhost:$port" -ForegroundColor DarkCyan
+        $ngrokProc = Start-Process -FilePath ngrok -ArgumentList @('http', $port, '--domain', $ngrokDomain) -PassThru -WindowStyle Hidden
+        Start-Sleep -Seconds 3
+    } else {
+        Write-Host "Skipping ngrok tunnel (using NEXT_PUBLIC_BASE_URL = $envBaseUrl)" -ForegroundColor DarkYellow
+    }
 
     Start-VipRefreshLoop
 
     try {
-        Run-NpmDev
+        Start-NpmDev
     }
     finally {
         Stop-VipRefreshLoop
