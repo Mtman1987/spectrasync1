@@ -263,8 +263,22 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
       return { sourceClipUrl: null, gifUrl: null, note: "FreeConvert API key missing." };
     }
 
-    // 3. Construct the MP4 URL from the Twitch clip's thumbnail URL.
-    const mp4Url = clip.thumbnail_url.replace(/-preview-\d+x\d+\.jpg$/, ".mp4");
+    // 3. Construct the MP4 URL from the Twitch clip's thumbnail URL or use any available video url.
+    let mp4Url: string | null = null;
+    if (typeof (clip as any).video_url === "string" && (clip as any).video_url.trim()) {
+      mp4Url = (clip as any).video_url;
+    } else if (typeof clip.thumbnail_url === "string" && clip.thumbnail_url.trim()) {
+      // Try the common Twitch pattern first
+      mp4Url = clip.thumbnail_url.replace(/-preview-\d+x\d+\.jpg$/, ".mp4");
+      // If the replacement didn't change the string, try a more permissive fallback
+      if (mp4Url === clip.thumbnail_url) {
+        mp4Url = clip.thumbnail_url.replace(/\.jpg$/, ".mp4");
+      }
+    }
+
+    if (!mp4Url) {
+      return { sourceClipUrl: null, gifUrl: null, note: "Unable to derive MP4 URL for the clip." };
+    }
 
     // 4. Define the job payload for the FreeConvert API.
     const jobPayload = {
@@ -307,8 +321,8 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
       throw new Error(`FreeConvert job creation failed with status ${createJobResponse.status}: ${errorText}`);
     }
 
-    const job = await createJobResponse.json();
-    const jobId = job.id;
+  const job = await createJobResponse.json();
+  const jobId = job?.id ?? job?.job?.id;
     console.log(`Started FreeConvert job ${jobId} for clip ${clip.id}`);
 
     // 6. Poll for job completion.
@@ -331,10 +345,27 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
       const jobStatus = await statusResponse.json();
 
       if (jobStatus.status === "completed") {
-        const exportTask = jobStatus.tasks.find((task: any) => task.name === "export-url");
-        if (exportTask?.result?.url) {
-          const gifUrl = exportTask.result.url;
+        // Tasks may be returned as an array or keyed object depending on the response shape.
+        const tasks = jobStatus.tasks ?? {};
+        const tasksArray = Array.isArray(tasks) ? tasks : Object.values(tasks);
 
+        // Try to find an export task that contains a usable URL in a few possible shapes.
+        const exportTask = tasksArray.find((task: any) => {
+          return (
+            task?.name === "export-url" ||
+            task?.operation?.toString().includes("export") ||
+            Boolean(task?.result?.url) ||
+            Boolean(task?.result?.files?.[0]?.url)
+          );
+        });
+
+        const gifUrl =
+          exportTask?.result?.url ??
+          exportTask?.result?.files?.[0]?.url ??
+          exportTask?.result?.files?.[0]?.url_secure ??
+          null;
+
+        if (gifUrl) {
           // 7. Cache the result and return.
           await cacheRef.set({ gifUrl, createdAt: new Date().toISOString() });
           console.log(`Successfully generated and cached GIF for clip ${clip.id}`);
@@ -343,12 +374,16 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
             gifUrl: gifUrl,
             note: null,
           };
-        } else {
-          throw new Error(`FreeConvert job ${jobId} completed, but no export URL was found.`);
         }
-      } else if (jobStatus.status === "failed") {
-        const failedTask = jobStatus.tasks.find((task: any) => task.status === "failed");
-        const reason = failedTask?.result?.message ?? "Unknown reason";
+
+        throw new Error(`FreeConvert job ${jobId} completed, but no export URL was found (unexpected task shape).`);
+      }
+
+      if (jobStatus.status === "failed") {
+        const tasks = jobStatus.tasks ?? {};
+        const tasksArray = Array.isArray(tasks) ? tasks : Object.values(tasks);
+        const failedTask = tasksArray.find((t: any) => t?.status === "failed");
+        const reason = failedTask?.result?.message ?? jobStatus?.error ?? "Unknown reason";
         throw new Error(`FreeConvert job ${jobId} failed: ${reason}`);
       }
     }
