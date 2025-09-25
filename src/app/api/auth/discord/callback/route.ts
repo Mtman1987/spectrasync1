@@ -1,6 +1,8 @@
 // src/app/api/auth/discord/callback/route.ts
 import { type NextRequest, NextResponse } from "next/server";
 import { saveAdminInfo } from "@/app/actions";
+
+export const dynamic = 'force-dynamic';
 import { getRuntimeValue } from "@/lib/runtime-config";
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';

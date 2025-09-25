@@ -113,9 +113,9 @@ export async function saveUserInfoByDiscordId(guildId: string, discordId: string
     await userRef.set(data, { merge: true });
     console.log(`User info saved for user ${sanitizeForLog(discordId)} in guild ${sanitizeForLog(guildId)}`);
     return { success: true };
-  } catch (e) {
-    console.error(`Error saving user info for user ${sanitizeForLog(discordId)} in guild ${sanitizeForLog(guildId)}: `, sanitizeForLog(e));
-    const errorMessage = e instanceof Error ? e.message : String(e);
+  } catch (error) {
+    console.error(`Error saving user info for user ${sanitizeForLog(discordId)} in guild ${sanitizeForLog(guildId)}: `, sanitizeForLog(error));
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return { success: false, error: errorMessage };
   }
 }
@@ -139,9 +139,9 @@ export async function getUserInfoByDiscordId(guildId: string, discordId: string)
         
         return { value: doc.data() || null };
 
-    } catch (e) {
-        console.error(`Error getting user info for discordId ${sanitizeForLog(discordId)} in guild ${sanitizeForLog(guildId)}: `, sanitizeForLog(e));
-        const errorMessage = e instanceof Error ? e.message : String(e);
+    } catch (error) {
+        console.error(`Error getting user info for discordId ${sanitizeForLog(discordId)} in guild ${sanitizeForLog(guildId)}: `, sanitizeForLog(error));
+        const errorMessage = error instanceof Error ? error.message : String(error);
         return { value: null, error: errorMessage };
     }
 }
@@ -635,7 +635,7 @@ export async function leavePile(guildId: string, userId: string) {
         return { success: true };
     } catch (error) {
         console.error("Error leaving pile:", error);
-        const errorMessage = error instanceof Error ? error.message : String(e);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         return { success: false, error: errorMessage };
     }
 }
@@ -675,7 +675,7 @@ export async function addVip(guildId: string, twitchUsername: string, vipMessage
 
     } catch (error) {
         console.error("Error adding VIP:", error);
-        const errorMessage = error instanceof Error ? error.message : String(e);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         return { success: false, error: errorMessage };
     }
 }
@@ -717,7 +717,7 @@ export async function createAndAddVip(guildId: string, discordId: string, twitch
 
     } catch (error) {
         console.error("Error creating and adding VIP:", error);
-        const errorMessage = error instanceof Error ? error.message : String(e);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         return { success: false, error: errorMessage };
     }
 }
@@ -746,7 +746,7 @@ export async function removeVip(guildId: string, discordId: string) {
 
     } catch (error) {
         console.error("Error removing VIP:", error);
-        const errorMessage = error instanceof Error ? error.message : String(e);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         return { success: false, error: errorMessage };
     }
 }
@@ -773,7 +773,7 @@ export async function updateVip(guildId: string, discordId: string, vipMessage: 
         return { success: true, message: `VIP message for ${displayName} has been updated.` };
     } catch (error) {
         console.error("Error updating VIP:", error);
-        const errorMessage = error instanceof Error ? error.message : String(e);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         return { success: false, error: errorMessage };
     }
 }
@@ -814,7 +814,7 @@ export async function addPointsToAdmin(guildId: string, adminDiscordId: string, 
 
     return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(e);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error adding points to admin:", error);
     return { success: false, error: errorMessage };
   }

@@ -1,6 +1,8 @@
 // src/app/api/auth/discord/route.ts
 import { type NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
+
+export const dynamic = 'force-dynamic';
 import { getRuntimeValue } from "@/lib/runtime-config";
 
 const DEFAULT_BASE_URL = "https://spacemtn--cosmic-raid-app.us-central1.hosted.app";

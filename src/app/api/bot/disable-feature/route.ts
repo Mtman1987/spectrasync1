@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { deleteDiscordMessages, validateBotSecret } from "@/lib/bot-utils";
 
+export const dynamic = 'force-dynamic';
+
 // Map external feature identifiers to Firestore settings document IDs
 const FEATURE_TO_CONFIG_ID: Record<string, string> = {
   "vip-live": "vipLiveConfig",
