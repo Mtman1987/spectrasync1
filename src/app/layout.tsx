@@ -3,11 +3,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
-export const metadata: Metadata = {
-  title: 'Cosmic Raid App',
-  description: 'Manage your Discord community with the power of AI.',
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -15,8 +10,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <head>
-      </head>
       <body className="font-body antialiased bg-background text-foreground">
         {children}
         <Toaster />
@@ -24,3 +17,8 @@ export default function RootLayout({
     </html>
   );
 }
+
+export const metadata: Metadata = {
+  title: 'Cosmic Raid App',
+  description: 'Manage your Discord community with the power of AI.',
+};
