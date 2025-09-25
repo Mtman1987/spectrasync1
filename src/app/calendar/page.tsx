@@ -22,7 +22,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DayContent, DayContentProps } from "react-day-picker"
 import { useSearchParams } from "next/navigation"
 
-
 const eventIcons = {
   Community: Users,
   VIP: Crown,
@@ -33,7 +32,6 @@ const eventIcons = {
 function CalendarPageContent({ guildId, adminDiscordId }: { guildId: string | null, adminDiscordId: string | null }) {
   const { toast } = useToast();
   const searchParams = useSearchParams();
-  
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -60,7 +58,7 @@ function CalendarPageContent({ guildId, adminDiscordId }: { guildId: string | nu
     } else {
         setIsLoading(false);
     }
-  }, [fetchData, currentMonth, guildId, communityLoading]);
+  }, [fetchData, currentMonth, guildId]);
 
   const handleMonthChange = (month: Date) => {
     setCurrentMonth(month);
@@ -138,7 +136,6 @@ function CalendarPageContent({ guildId, adminDiscordId }: { guildId: string | nu
           </div>
       </div>
 
-       {!guildId && !isLoading && !communityLoading && (
        {!guildId && !isLoading && (
             <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />

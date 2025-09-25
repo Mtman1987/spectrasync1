@@ -1,14 +1,12 @@
 
 "use client"
 
-import { getLiveCommunityPoolUsers, getAdminInfo } from "@/app/actions";
+import { getLiveCommunityPoolUsers } from "@/app/actions";
 import { CommunityPoolClientPage } from "@/app/community-pool/community-pool-client-page";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useEffect, useState, Suspense } from "react";
 import type { LiveUser } from "@/app/raid-pile/types";
 import { useSearchParams } from "next/navigation";
-import { doc, getDoc, getFirestore } from "firebase/firestore";
-import { getClientApp } from "@/lib/firebase";
 
 
 function CommunityPoolPageContent({ guildId }: { guildId: string | null }) {
@@ -29,6 +27,9 @@ function CommunityPoolPageContent({ guildId }: { guildId: string | null }) {
 
             const users = await getLiveCommunityPoolUsers(guildId);
             setInitialUsers(users);
+
+            // In a future step, you might fetch the spotlight user ID here
+            // For now, we just fetch the users.
 
             setIsLoading(false);
         }
@@ -77,6 +78,4 @@ async function CommunityPoolPageWrapper() {
   );
 }
 
-export default CommunityPoolPageWrapper
-    
-    
+export default CommunityPoolPageWrapper;

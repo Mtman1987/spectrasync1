@@ -26,9 +26,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useTransition, useState, useEffect } from "react";
 import { Loader2, Train, Wand2 } from "lucide-react";
-import { saveSettings, getSettings } from "@/app/settings/actions";
 import { Switch } from "@/components/ui/switch";
-import { useCommunity } from "@/context/community-context";
 import { FullScheduleDialog } from "./full-schedule-dialog";
 
 
@@ -43,11 +41,9 @@ const SettingsFormSchema = z.object({
 });
 
 
-export function RaidTrainSettingsForm({ onSettingsSaved }: { onSettingsSaved: () => void }) {
+export function RaidTrainSettingsForm({ guildId, onSettingsSaved }: { guildId: string | null, onSettingsSaved: () => void }) {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
-    const { selectedGuild: guildId } = useCommunity();
-
     const form = useForm<z.infer<typeof SettingsFormSchema>>({ 
         resolver: zodResolver(SettingsFormSchema),
         defaultValues: {
@@ -65,6 +61,7 @@ export function RaidTrainSettingsForm({ onSettingsSaved }: { onSettingsSaved: ()
 
     useEffect(() => {
         async function fetchGuildAndSettings() {
+            const { getSettings } = await import('@/app/settings/actions');
             if (guildId) {
                 const settings = await getSettings(guildId);
                 form.reset(settings);
@@ -79,6 +76,7 @@ export function RaidTrainSettingsForm({ onSettingsSaved }: { onSettingsSaved: ()
             return;
         }
         startTransition(async () => {
+            const { saveSettings } = await import('@/app/settings/actions');
             const result = await saveSettings(guildId, data);
             if (result.success) {
                 toast({ title: "Settings Saved", description: "Raid Train settings have been updated." });
@@ -176,4 +174,3 @@ export function RaidTrainSettingsForm({ onSettingsSaved }: { onSettingsSaved: ()
         </Card>
     )
 }
-

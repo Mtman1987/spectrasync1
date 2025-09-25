@@ -16,7 +16,6 @@ import Link from "next/link";
 import type { RaidPile, LiveUser } from "./types";
 import { LeaderboardCard } from "@/components/leaderboard-card";
 import type { LeaderboardUser } from "@/app/leaderboard/actions";
-import { Twitch } from "@/components/icons";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -176,7 +175,7 @@ export function RaidPileClientPage({
 
        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <QuickLinkCard guildId={guildId} />
-             <LeaderboardCard leaderboardData={leaderboardData} isLoading={isLoading} />
+             <LeaderboardCard leaderboardData={leaderboardData} />
         </div>
 
 
