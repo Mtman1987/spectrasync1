@@ -2,8 +2,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { Suspense } from 'react';
-import { CommunityProvider } from '@/context/community-context';
 
 export const metadata: Metadata = {
   title: 'Cosmic Raid App',
@@ -20,11 +18,7 @@ export default function RootLayout({
       <head>
       </head>
       <body className="font-body antialiased bg-background text-foreground">
-          <Suspense fallback={<div>Loading...</div>}>
-            <CommunityProvider>
-              {children}
-            </CommunityProvider>
-          </Suspense>
+        {children}
         <Toaster />
       </body>
     </html>
