@@ -3,12 +3,14 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
-import RaidPilePageWrapper from "@/app/raid-pile/page";
-import CommunityPoolPageWrapper from "@/app/community-pool/page";
-import VipLivePageWrapper from "@/app/vip-live/page";
-import RaidTrainPageWrapper from "@/app/raid-train/page";
-import CalendarPageWrapper from "@/app/calendar/page";
+import dynamic from "next/dynamic";
 import { Loader2 } from "lucide-react";
+
+const RaidPilePageWrapper = dynamic(() => import("@/app/raid-pile/page"), { ssr: false });
+const CommunityPoolPageWrapper = dynamic(() => import("@/app/community-pool/page"), { ssr: false });
+const VipLivePageWrapper = dynamic(() => import("@/app/vip-live/page"), { ssr: false });
+const RaidTrainPageWrapper = dynamic(() => import("@/app/raid-train/page"), { ssr: false });
+const CalendarPageWrapper = dynamic(() => import("@/app/calendar/page"), { ssr: false });
 
 function ActivityPageContent() {
     const searchParams = useSearchParams();
