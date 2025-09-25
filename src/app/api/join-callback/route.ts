@@ -28,15 +28,25 @@ async function resolveBaseUrl(request: NextRequest) {
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
-    const action = searchParams.get('action');
+    const state = searchParams.get('state');
 
     const baseUrl = await resolveBaseUrl(request);
 
     if (!code) {
         return NextResponse.redirect(new URL('/join?error=Missing authorization code', baseUrl));
     }
-    if (!action) {
-         return NextResponse.redirect(new URL('/join?error=Missing action parameter', baseUrl));
+
+    let action: string | null = null;
+    let guildIdFromState: string | null = null;
+
+    if (state) {
+        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+        action = decodedState.action;
+        guildIdFromState = decodedState.guildId;
+    }
+
+    if (!action || !guildIdFromState) {
+         return NextResponse.redirect(new URL('/join?error=Invalid or missing action parameter', baseUrl));
     }
 
     try {
@@ -84,18 +94,12 @@ export async function GET(request: NextRequest) {
             throw new Error("Could not resolve user's Discord ID.");
         }
 
-        // Find a common guild between the user and the bot.
-        // This is a simplified approach. A real app might have the bot query its own guilds.
-        // For now, we assume the first guild the user is in is the target. This is a big assumption.
-        // A better approach would be to pass the guildId in the original link, but that's complex.
-        const targetGuildId = guildsData[0]?.id;
-
-        if (!targetGuildId) {
+        if (!guildsData.some((g: any) => g.id === guildIdFromState)) {
             return NextResponse.redirect(new URL(`/join?action=${action}&error=Could not determine a community. Please join the Discord server first.`, baseUrl));
         }
 
         // Save basic user info
-        await saveUserInfoByDiscordId(targetGuildId, discordId, {
+        await saveUserInfoByDiscordId(guildIdFromState, discordId, {
             discordInfo: {
                 id: userData.id,
                 username: userData.username,
@@ -105,7 +109,7 @@ export async function GET(request: NextRequest) {
         
         const redirectUrl = new URL('/join', baseUrl);
         redirectUrl.searchParams.set('action', action);
-        redirectUrl.searchParams.set('guildId', targetGuildId);
+        redirectUrl.searchParams.set('guildId', guildIdFromState);
         redirectUrl.searchParams.set('discordId', discordId);
         return NextResponse.redirect(redirectUrl);
 

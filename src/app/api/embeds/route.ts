@@ -1,11 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { format } from "date-fns";
 
+import { getRaidPile, getRaidTrain, getCommunityPoolVips } from "@/app/actions/read";
 import { buildCalendarEmbed } from "@/app/calendar/actions";
 import { buildLeaderboardEmbed } from "@/app/leaderboard/actions";
 import { getLiveVipUsers, getTwitchClips } from "@/app/actions";
 import { deleteDiscordMessages, validateBotSecret } from "@/lib/bot-utils";
 import { getAdminDb } from "@/lib/firebase-admin";
+import { getRuntimeValue } from "@/lib/runtime-config";
 import type { LiveUser } from "@/app/raid-pile/types";
 
 interface EmbedRequestPayload extends Record<string, unknown> {
@@ -113,12 +115,10 @@ const embedBuilders: Record<string, EmbedBuilder> = {
   leaderboard: async ({ guildId }) => buildLeaderboardEmbed(guildId),
   "vip-live": buildVipLiveEmbed,
   vip: buildVipLiveEmbed,
-  "community-pool": buildUnsupported("community pool"),
-  community: buildUnsupported("community pool"),
-  "raid-pile": buildUnsupported("raid pile"),
-  pile: buildUnsupported("raid pile"),
-  "raid-train": buildUnsupported("raid train"),
-}
+  "community-pool": buildCommunityPoolEmbed,
+  "raid-pile": buildRaidPileEmbed,
+  "raid-train": buildRaidTrainEmbed,
+};
 
 function buildUnsupported(feature: string): EmbedBuilder {
   return async () => ({
@@ -213,14 +213,16 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
 
     console.log(`[Cache MISS] Generating new GIF for clip ${clip.id} for user ${username}`);
 
-    if (!process.env.FREE_CONVERT_API_KEY) {
+    const apiKey = await getRuntimeValue<string>("FREE_CONVERT_API_KEY", process.env.FREE_CONVERT_API_KEY);
+    if (!apiKey) {
       return { sourceClipUrl: null, gifUrl: null, note: "FreeConvert API key missing." };
     }
-
+ 
     // 3. Construct the MP4 URL from the Twitch clip's thumbnail URL or use any available video url.
     let mp4Url: string | null = null;
     if (typeof (clip as any).video_url === "string" && (clip as any).video_url.trim()) {
       mp4Url = (clip as any).video_url;
+    } else if (typeof clip.thumbnail_url === "string" && clip.thumbnail_url.includes("-preview-")) {
     } else if (typeof clip.thumbnail_url === "string" && clip.thumbnail_url.trim()) {
       // Try the common Twitch pattern first
       mp4Url = clip.thumbnail_url.replace(/-preview-\d+x\d+\.jpg$/, ".mp4");
@@ -229,7 +231,7 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
         mp4Url = clip.thumbnail_url.replace(/\.jpg$/, ".mp4");
       }
     }
-
+ 
     if (!mp4Url) {
       return { sourceClipUrl: null, gifUrl: null, note: "Unable to derive MP4 URL for the clip." };
     }
@@ -265,7 +267,7 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Authorization': `Bearer ${process.env.FREE_CONVERT_API_KEY}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify(jobPayload)
     });
@@ -276,7 +278,7 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
     }
 
   const job = await createJobResponse.json();
-  const jobId = job?.id ?? job?.job?.id;
+  const jobId = job?.id ?? job?.job?.id; // Handle different possible response shapes
     console.log(`Started FreeConvert job ${jobId} for clip ${clip.id}`);
 
     // 6. Poll for job completion.
@@ -287,12 +289,13 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
       const statusResponse = await fetch(`https://api.freeconvert.com/v1/process/jobs/${jobId}`, {
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${process.env.FREE_CONVERT_API_KEY}`,
+          Authorization: `Bearer ${apiKey}`,
         }
       });
 
       if (!statusResponse.ok) {
-        console.warn(`Failed to get job status for ${jobId} (status: ${statusResponse.status}), retrying...`);
+        const errorText = await statusResponse.text().catch(() => 'Unknown error');
+        console.warn(`Failed to get job status for ${jobId} (status: ${statusResponse.status}), retrying... Error: ${errorText}`);
         continue;
       }
 
@@ -300,25 +303,16 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
 
       if (jobStatus.status === "completed") {
         // Tasks may be returned as an array or keyed object depending on the response shape.
-        const tasks = jobStatus.tasks ?? {};
-        const tasksArray = Array.isArray(tasks) ? tasks : Object.values(tasks);
+        const tasksArray = Array.isArray(jobStatus.tasks) ? jobStatus.tasks : Object.values(jobStatus.tasks ?? {});
 
         // Try to find an export task that contains a usable URL in a few possible shapes.
-        const exportTask = tasksArray.find((task: any) => {
-          return (
-            task?.name === "export-url" ||
-            task?.operation?.toString().includes("export") ||
-            Boolean(task?.result?.url) ||
-            Boolean(task?.result?.files?.[0]?.url)
-          );
-        });
+        const exportTask = tasksArray.find((task: any) => task?.operation === "export/url");
 
         const gifUrl =
           exportTask?.result?.url ??
           exportTask?.result?.files?.[0]?.url ??
           exportTask?.result?.files?.[0]?.url_secure ??
           null;
-
         if (gifUrl) {
           // 7. Cache the result and return.
           await cacheRef.set({ gifUrl, createdAt: new Date().toISOString() });
@@ -334,8 +328,7 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
       }
 
       if (jobStatus.status === "failed") {
-        const tasks = jobStatus.tasks ?? {};
-        const tasksArray = Array.isArray(tasks) ? tasks : Object.values(tasks);
+        const tasksArray = Array.isArray(jobStatus.tasks) ? jobStatus.tasks : Object.values(jobStatus.tasks ?? {});
         const failedTask = tasksArray.find((t: any) => t?.status === "failed");
         const reason = failedTask?.result?.message ?? jobStatus?.error ?? "Unknown reason";
         throw new Error(`FreeConvert job ${jobId} failed: ${reason}`);
@@ -549,8 +542,132 @@ async function buildVipLiveEmbed(payload: EmbedRequestPayload): Promise<EmbedRes
   };
 }
 
+async function buildRaidPileEmbed(payload: EmbedRequestPayload): Promise<EmbedResponsePayload> {
+  const guildId = payload.guildId;
+  const pile = await getRaidPile(guildId);
+  const now = new Date();
+  const isoNow = now.toISOString();
+
+  const holder = pile.length > 0 ? pile[0] : null;
+  const queue = pile.length > 1 ? pile.slice(1, 6) : []; // Show next 5
+
+  const embeds: EmbedObject[] = [];
+
+  if (holder) {
+    embeds.push({
+      title: "👑 Raid Pile Holder",
+      description: `**${holder.displayName}** is up next!`,
+      color: 0x9146ff,
+      thumbnail: { url: holder.avatarUrl },
+      fields: [
+        { name: "Streaming", value: holder.latestGameName || "N/A", inline: true },
+        { name: "Live Since", value: formatStartedAt(holder.started_at), inline: true },
+      ],
+      footer: { text: `Currently streaming: ${holder.latestStreamTitle}` },
+    });
+  } else {
+    embeds.push({
+      title: "Raid Pile",
+      description: "The raid pile is currently empty. Be the first to join!",
+      color: 0x5865f2,
+    });
+  }
+
+  if (queue.length > 0) {
+    embeds.push({
+      title: "Next in Queue",
+      description: queue.map((u, i) => `${i + 1}. ${u.displayName}`).join("\n"),
+      color: 0x4864ff,
+    });
+  }
+
+  return {
+    feature: "raid-pile",
+    guildId,
+    lastUpdatedAt: isoNow,
+    messages: [{ index: 0, embeds, metadata: { feature: "raid-pile", guildId, lastUpdatedAt: isoNow, chunk: 1, totalChunks: 1 } }],
+  };
+}
+
+async function buildRaidTrainEmbed(payload: EmbedRequestPayload): Promise<EmbedResponsePayload> {
+  const guildId = payload.guildId;
+  const train = await getRaidTrain(guildId);
+  const now = new Date();
+  const isoNow = now.toISOString();
+
+  const embeds: EmbedObject[] = [{
+    title: "🚂 Community Raid Train Schedule",
+    description: "Sign up for a slot and get ready to raid! All times are in your local timezone.",
+    color: 0xff69b4,
+    timestamp: isoNow,
+  }];
+
+  for (const day of train.schedule) {
+    const fields = day.slots.map(slot => ({
+      name: `${slot.time} - ${slot.claimedBy ? `✅ ${slot.claimedBy.displayName}` : "Open"}`,
+      value: slot.note || " ",
+      inline: true,
+    }));
+    embeds.push({
+      title: day.dayOfWeek,
+      fields: fields.length > 0 ? fields : [{ name: "No slots available", value: " " }],
+      color: 0xffa500,
+    });
+  }
+
+  return {
+    feature: "raid-train",
+    guildId,
+    lastUpdatedAt: isoNow,
+    messages: [{ index: 0, embeds, metadata: { feature: "raid-train", guildId, lastUpdatedAt: isoNow, chunk: 1, totalChunks: 1 } }],
+  };
+}
+
+async function buildCommunityPoolEmbed(payload: EmbedRequestPayload): Promise<EmbedResponsePayload> {
+  const guildId = payload.guildId;
+  const { live, lastSpotlightedId } = await getCommunityPoolVips(guildId);
+  const now = new Date();
+  const isoNow = now.toISOString();
+
+  if (live.length === 0) {
+    return {
+      feature: "community-pool",
+      guildId,
+      lastUpdatedAt: isoNow,
+      messages: [{ index: 0, embeds: [{ title: "Community Pool", description: "No one from the pool is live right now.", color: 0x5865f2 }], metadata: { feature: "community-pool", guildId, lastUpdatedAt: isoNow, chunk: 1, totalChunks: 1 } }],
+    };
+  }
+
+  // Find the next person to spotlight
+  const lastIndex = live.findIndex(u => u.twitchId === lastSpotlightedId);
+  const nextIndex = (lastIndex + 1) % live.length;
+  const spotlight = live[nextIndex];
+
+  const embed: EmbedObject = {
+    title: `🌟 Community Spotlight: ${spotlight.displayName}`,
+    url: `https://twitch.tv/${spotlight.twitchLogin}`,
+    description: spotlight.latestStreamTitle || "Check out the stream!",
+    color: 0x00ff7f,
+    thumbnail: { url: spotlight.avatarUrl },
+    fields: [
+      { name: "Streaming", value: spotlight.latestGameName || "N/A", inline: true },
+      { name: "Viewers", value: `${spotlight.latestViewerCount ?? 0}`, inline: true },
+    ],
+    footer: { text: `Live since ${formatStartedAt(spotlight.started_at)}` },
+    timestamp: isoNow,
+  };
+
+  return {
+    feature: "community-pool",
+    guildId,
+    lastUpdatedAt: isoNow,
+    messages: [{ index: 0, embeds: [embed], metadata: { feature: "community-pool", guildId, lastUpdatedAt: isoNow, chunk: 1, totalChunks: 1 } }],
+    nextSpotlightId: spotlight.twitchId, // Hint for the persistence logic
+  };
+}
+
 async function dispatchMessagesToDiscord(messages: MessageBlock[], channelId: string) {
-  const botToken = process.env.DISCORD_BOT_TOKEN;
+  const botToken = await getRuntimeValue<string>("DISCORD_BOT_TOKEN", process.env.DISCORD_BOT_TOKEN);
   if (!botToken) {
     throw new Error("DISCORD_BOT_TOKEN is not configured.");
   }
@@ -634,6 +751,11 @@ async function persistVipLiveConfig(
       lastDispatchMessageIds:
         dispatchSummary.status === "sent" ? dispatchSummary.messageIds ?? [] : [],
     };
+
+    if (payload.type === 'community-pool' && (responsePayload as any)?.nextSpotlightId) {
+      // Persist the next user to be spotlighted for rotation
+      data.lastSpotlightedId = (responsePayload as any).nextSpotlightId;
+    }
 
     await settingsRef.set(data, { merge: true });
   } catch (error) {

@@ -1,12 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
+import { getRuntimeValue } from "@/lib/runtime-config";
 
-function getExpectedSecret() {
-  return process.env.BOT_SECRET_KEY ?? "";
-}
-
-function validateSecret(request: NextRequest) {
-  const expected = getExpectedSecret();
+async function validateSecret(request: NextRequest) {
+  const expected = await getRuntimeValue<string>("BOT_SECRET_KEY", process.env.BOT_SECRET_KEY);
   if (!expected) {
     // If the server-side BOT_SECRET_KEY is not configured, all admin requests will be rejected.
     return { valid: false, reason: "Server BOT_SECRET_KEY not configured" };
@@ -29,7 +26,7 @@ const CONFIG_DOC = "runtime";
 
 export async function POST(request: NextRequest) {
   try {
-    const secret = validateSecret(request);
+    const secret = await validateSecret(request);
     if (!secret.valid) {
       return NextResponse.json({ error: "Unauthorized", reason: secret.reason }, { status: 401 });
     }
@@ -79,7 +76,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const secret = validateSecret(request);
+    const secret = await validateSecret(request);
     if (!secret.valid) {
       return NextResponse.json({ error: "Unauthorized", reason: secret.reason }, { status: 401 });
     }

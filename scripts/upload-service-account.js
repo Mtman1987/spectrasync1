@@ -9,20 +9,33 @@ const fs = require('fs');
 const path = require('path');
 const admin = require('firebase-admin');
 
-async function main() {
-  const saPath = process.argv[2] || path.join(process.cwd(), 'firebase-service-account.json');
-  if (!fs.existsSync(saPath)) {
-    console.error('Service account file not found at', saPath);
-    process.exit(1);
+function initializeFirebaseAdmin(saPath) {
+  if (saPath && fs.existsSync(saPath)) {
+    console.log('Initializing with service account from path:', saPath);
+    const serviceAccount = require(path.resolve(saPath));
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    return fs.readFileSync(saPath, 'utf8');
   }
 
-  const raw = fs.readFileSync(saPath, 'utf8');
-  // initialize admin using the same service account
-  const serviceAccount = require(path.resolve(saPath));
-  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  const saPathFromEnv = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (saPathFromEnv && fs.existsSync(saPathFromEnv)) {
+    console.log('Initializing with service account from GOOGLE_APPLICATION_CREDENTIALS:', saPathFromEnv);
+    const serviceAccount = require(path.resolve(saPathFromEnv));
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    return fs.readFileSync(saPathFromEnv, 'utf8');
+  }
+
+  console.error('Service account file not found.');
+  console.error('Please provide a path or set the GOOGLE_APPLICATION_CREDENTIALS environment variable.');
+  process.exit(1);
+}
+
+async function main() {
+  const saPathArg = process.argv[2];
+  const rawJson = initializeFirebaseAdmin(saPathArg);
   const db = admin.firestore();
 
-  const b64 = Buffer.from(raw, 'utf8').toString('base64');
+  const b64 = Buffer.from(rawJson, 'utf8').toString('base64');
 
   console.log('Writing FIREBASE_ADMIN_SDK_JSON_BASE64 to Firestore (app_settings/runtime)');
   await db.collection('app_settings').doc('runtime').set({ FIREBASE_ADMIN_SDK_JSON_BASE64: b64, updatedAt: new Date().toISOString() }, { merge: true });

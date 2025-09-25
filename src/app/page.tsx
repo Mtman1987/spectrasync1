@@ -4,14 +4,19 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
 import { CosmicRaidLogo } from "@/components/icons";
 
-export default function HomePage() {
-  // This page is now a simple entry point.
-  // We'll add logic to redirect if already logged in later.
+export default async function HomePage() {
+  const session = await getSession();
+
+  // If the user is already logged in, send them straight to the dashboard.
+  if (session.isLoggedIn) {
+    redirect('/dashboard');
+  }
+
   return (
     <SetupPage>
       <p className="text-muted-foreground mb-6">
         The suite of powerful tools to help you manage, engage, and grow your Twitch community.
-      p>
+      </p>
       <a
         href="/api/auth/discord"
         className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

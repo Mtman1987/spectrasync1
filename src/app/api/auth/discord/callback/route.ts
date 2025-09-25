@@ -29,11 +29,17 @@ async function resolveBaseUrl(request: NextRequest) {
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const storedState = request.cookies.get('discord_oauth_state')?.value;
 
     const baseUrl = await resolveBaseUrl(request);
 
     if (!code) {
         return NextResponse.redirect(new URL('/?error=Missing authorization code', baseUrl));
+    }
+
+    if (!state || !storedState || state !== storedState) {
+        return NextResponse.redirect(new URL('/?error=Invalid state parameter. Please try again.', baseUrl));
     }
 
     try {
