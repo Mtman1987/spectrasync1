@@ -1,0 +1,39 @@
+# Cloud Build configuration
+# - Installs Node deps, runs the Next build, then deploys the source to Cloud Run
+# - Uses `gcloud run deploy --source .` so a Dockerfile is not required.
+# Substitutions:
+#   _SERVICE  -> Cloud Run service name (override in trigger)
+#   _REGION   -> Cloud Run region (override in trigger)
+substitutions:
+  _SERVICE: "spectrasync-app"
+  _REGION: "us-central1"
+
+steps:
+  # install dependencies (uses the official npm builder)
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['ci']
+
+  # run the project's build script (should be defined in package.json)
+  - name: 'gcr.io/cloud-builders/npm'
+    args: ['run', 'build']
+
+  # deploy to Cloud Run from source; Cloud Build / gcloud will build a container
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        echo "Deploying to Cloud Run service='${_SERVICE}' region='${_REGION}' project='${PROJECT_ID}'"
+        gcloud run deploy "${_SERVICE}" \
+          --source . \
+          --region "${_REGION}" \
+          --platform managed \
+          --project "${PROJECT_ID}" \
+          --allow-unauthenticated
+
+# Optional: increase timeout for large builds (default is 10m)
+timeout: '1200s'
+
+# Images produced by this build (none pre-declared; gcloud will build/push an image)
+images: []
