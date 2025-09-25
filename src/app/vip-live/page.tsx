@@ -1,6 +1,4 @@
 
-"use client"
-
 import { getLiveVipUsers, getAdminInfo } from "@/app/actions";
 import { VipLiveClientPage } from "@/app/vip-live/vip-live-client-page";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -47,6 +45,7 @@ function VipLivePageContent({ guildId }: { guildId: string | null }) {
             liveVips={liveVips}
             allVips={allVips}
             isLoading={isLoading}
+            parentDomain={""}
             guildId={guildId || ""}
             onVipChanged={fetchData}
           />
