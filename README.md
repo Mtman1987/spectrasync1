@@ -95,7 +95,7 @@ This project relies on a set of environment variables for bot credentials, API k
 
 Minimum required environment variables:
 
-- `NEXT_PUBLIC_BASE_URL` - The public URL of your deployed app (example: `https://spcmtn--cosmic-raid-app.us-central1.hosted.app/`). Used for OAuth callbacks and links.
+-- `NEXT_PUBLIC_BASE_URL` - The public URL of your deployed app (example: `https://spacemtn--cosmic-raid-app.us-central1.hosted.app/`). Used for OAuth callbacks and links.
 - `BOT_SECRET_KEY` - Secret key used between your tools and the API endpoints (`x-bot-secret` or Authorization header). Keep this secret.
 - `DISCORD_BOT_TOKEN` - Your Discord bot token used to post/delete messages.
 - `FREE_CONVERT_API_KEY` - (Optional) API key for FreeConvert if you use the online GIF converter.
@@ -142,7 +142,7 @@ PowerShell (upload `.env` to app_settings/runtime):
 
 ```powershell
 # From repo root, provide the app URL and bot secret (or set BOT_SECRET_KEY in your shell)
-.\scripts\upload-env.ps1 -EnvPath .\.env -Url https://spcmtn--cosmic-raid-app.us-central1.hosted.app -Secret <BOT_SECRET_KEY>
+.\scripts\upload-env.ps1 -EnvPath .\.env -Url https://spacemtn--cosmic-raid-app.us-central1.hosted.app -Secret <BOT_SECRET_KEY>
 ```
 
 Curl (example):
@@ -152,14 +152,14 @@ Curl (example):
 cat <<EOF > payload.json
 {
   "root": {
-    "NEXT_PUBLIC_BASE_URL": "https://spcmtn--cosmic-raid-app.us-central1.hosted.app/",
+    "NEXT_PUBLIC_BASE_URL": "https://spacemtn--cosmic-raid-app.us-central1.hosted.app/",
     "DISCORD_BOT_TOKEN": "<your-bot-token>",
     "FREE_CONVERT_API_KEY": "<optional>"
   }
 }
 EOF
 
-curl -X POST "https://spcmtn--cosmic-raid-app.us-central1.hosted.app/api/admin/env" \
+curl -X POST "https://spacemtn--cosmic-raid-app.us-central1.hosted.app/api/admin/env" \
   -H "Content-Type: application/json" \
   -H "x-bot-secret: <BOT_SECRET_KEY>" \
   --data @payload.json

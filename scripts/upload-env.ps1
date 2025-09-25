@@ -3,7 +3,7 @@ Upload .env values to the app_settings/runtime Firestore doc via the admin API.
 
 Usage:
   # From repo root
-  .\scripts\upload-env.ps1 -EnvPath .\.env -Url https://spcmtn--cosmic-raid-app.us-central1.hosted.app -Secret <BOT_SECRET_KEY>
+    .\scripts\upload-env.ps1 -EnvPath .\.env -Url https://spacemtn--cosmic-raid-app.us-central1.hosted.app -Secret <BOT_SECRET_KEY>
 
 If -Secret is omitted the script will try to read BOT_SECRET_KEY from the current environment.
 #>
