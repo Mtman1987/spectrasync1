@@ -42,12 +42,16 @@ export async function GET(request: NextRequest) {
     try {
     const redirectUri = new URL('/api/join-callback', baseUrl).toString();
 
+        const clientId = await getRuntimeValue<string>("NEXT_PUBLIC_DISCORD_CLIENT_ID", process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID);
+        const clientSecret = await getRuntimeValue<string>("DISCORD_CLIENT_SECRET", process.env.DISCORD_CLIENT_SECRET);
+        if (!clientId || !clientSecret) throw new Error("Server is missing Discord client credentials");
+
         const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
-                client_id: process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID!,
-                client_secret: process.env.DISCORD_CLIENT_SECRET!,
+                client_id: clientId,
+                client_secret: clientSecret,
                 grant_type: 'authorization_code',
                 code,
                 redirect_uri: redirectUri,

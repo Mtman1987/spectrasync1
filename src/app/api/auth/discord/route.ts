@@ -36,7 +36,10 @@ export async function GET(request: NextRequest) {
         new URL('/api/auth/discord/callback', baseUrl).toString();
 
     const discordAuthUrl = new URL("https://discord.com/oauth2/authorize");
-    discordAuthUrl.searchParams.set("client_id", process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID!);
+    const clientId = await getRuntimeValue<string>("NEXT_PUBLIC_DISCORD_CLIENT_ID", process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID);
+    if (!clientId) throw new Error("Server is missing NEXT_PUBLIC_DISCORD_CLIENT_ID");
+
+    discordAuthUrl.searchParams.set("client_id", clientId);
     discordAuthUrl.searchParams.set("redirect_uri", redirectUri);
     discordAuthUrl.searchParams.set("response_type", "code");
     discordAuthUrl.searchParams.set("scope", "identify guilds");
