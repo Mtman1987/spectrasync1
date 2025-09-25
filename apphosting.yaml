@@ -6,6 +6,11 @@ runConfig:
   maxInstances: 10
   concurrency: 100
 
+build:
+  commands:
+    - npm ci
+    - npm run build
+  
 env:
   - variable: NODE_ENV
     value: production
