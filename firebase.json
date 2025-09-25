@@ -1,12 +1,10 @@
 {
-  "hosting": {
-    "public": "out",
-    "rewrites": [
-      {
-        "source": "**",
-        "function": "nextServer"
-      }
-    ]
+  "apphosting": {
+    "source": ".",
+    "runtime": "nodejs20",
+    "env": {
+      "NODE_ENV": "production"
+    }
   },
   "emulators": {
     "auth": {

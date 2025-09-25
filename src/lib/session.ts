@@ -8,7 +8,7 @@ export interface SessionData {
 }
 
 export async function getSessionOptions(): Promise<IronSessionOptions> {
-    const secret = await getRuntimeValue<string>('SESSION_SECRET');
+    const secret = await getRuntimeValue<string>('SESSION_SECRET', process.env.SESSION_SECRET) || 'cosmic-raid-session-secret-2024';
     if (!secret) {
         throw new Error('SESSION_SECRET is not set in runtime configuration.');
     }

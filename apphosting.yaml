@@ -1,0 +1,25 @@
+runConfig:
+  runtime: nodejs20
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 100
+
+env:
+  - variable: NODE_ENV
+    value: production
+  - variable: NEXT_PUBLIC_BASE_URL
+    secret: NEXT_PUBLIC_BASE_URL
+  - variable: BOT_SECRET_KEY
+    secret: BOT_SECRET_KEY
+  - variable: DISCORD_BOT_TOKEN
+    secret: DISCORD_BOT_TOKEN
+  - variable: FREE_CONVERT_API_KEY
+    secret: FREE_CONVERT_API_KEY
+  - variable: FIREBASE_PROJECT_ID
+    secret: FIREBASE_PROJECT_ID
+  - variable: FIREBASE_CLIENT_EMAIL
+    secret: FIREBASE_CLIENT_EMAIL
+  - variable: FIREBASE_PRIVATE_KEY
+    secret: FIREBASE_PRIVATE_KEY

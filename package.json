@@ -15,7 +15,10 @@
     "test": "tsc --noEmit",
     "ngrok": "ngrok start --config \"%USERPROFILE%\\\\.ngrok2\\\\ngrok.yml\" cosmicdev",
     "dev:with-tunnel": "powershell -ExecutionPolicy Bypass -File scripts/dev-with-tunnel.ps1",
-    "refresh:vip": "tsx scripts/vip-live-refresh.ts"
+    "refresh:vip": "tsx scripts/vip-live-refresh.ts",
+    "deploy": "firebase deploy --only apphosting",
+    "deploy:secrets": "firebase apphosting:secrets:set",
+    "build:standalone": "next build"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "^1.3.0",

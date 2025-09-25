@@ -14,6 +14,11 @@ tsconfig.tsbuildinfo
 # Build artifacts
 .next/
 .turbo/
+out/
+
+# Firebase App Hosting
+.firebase/
+.firebaseapprc
 
 # Old Git backup
 .git_old/

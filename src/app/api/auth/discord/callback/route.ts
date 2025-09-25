@@ -48,7 +48,8 @@ export async function GET(request: NextRequest) {
             process.env.DISCORD_REDIRECT_URI ||
             new URL('/api/auth/discord/callback', baseUrl).toString();
 
-        const clientId = await getRuntimeValue<string>("NEXT_PUBLIC_DISCORD_CLIENT_ID", process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID);
+        const clientId = await getRuntimeValue<string>("DISCORD_CLIENT_ID", process.env.DISCORD_CLIENT_ID) || 
+                         await getRuntimeValue<string>("NEXT_PUBLIC_DISCORD_CLIENT_ID", process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID);
         const clientSecret = await getRuntimeValue<string>("DISCORD_CLIENT_SECRET", process.env.DISCORD_CLIENT_SECRET);
         if (!clientId || !clientSecret) throw new Error("Server is missing Discord client credentials");
 

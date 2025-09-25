@@ -2,8 +2,13 @@
 import { redirect } from 'next/navigation';
 import { getSession } from '@/app/actions';
 import { CosmicRaidLogo } from "@/components/icons";
+import { ManualLoginForm } from '@/components/manual-login-form';
 
-export default async function HomePage() {
+type Props = {
+  searchParams: { error?: string }
+}
+
+export default async function HomePage({ searchParams }: Props) {
   const session = await getSession();
 
   // If the user is already logged in, send them straight to the dashboard.
@@ -11,17 +16,31 @@ export default async function HomePage() {
     redirect('/dashboard');
   }
 
+  const error = searchParams.error;
+
   return (
     <SetupPage>
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
       <p className="text-muted-foreground mb-6">
         The suite of powerful tools to help you manage, engage, and grow your Twitch community.
       </p>
-      <a
-        href="/api/auth/discord"
-        className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      >
-        Login with Discord
-      </a>
+      <div className="space-y-4">
+        <a
+          href="/api/auth/discord"
+          className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          Login with Discord
+        </a>
+        
+        <div className="text-center">
+          <p className="text-sm text-muted-foreground mb-2">Or use manual login:</p>
+          <ManualLoginForm />
+        </div>
+      </div>
     </SetupPage>
   );
 }
