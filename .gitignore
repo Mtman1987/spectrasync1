@@ -1,6 +1,7 @@
 
 # Firebase
 firebase-service-account.json
+cosmic-raid-app-firebase-adminsdk-*.json
 
 # Environment variables
 .env
