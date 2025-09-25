@@ -3,6 +3,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { saveAdminInfo } from "@/app/actions";
 import { getRuntimeValue } from "@/lib/runtime-config";
+import { getSession } from "@/lib/session";
 
 const DEFAULT_BASE_URL = "https://spacemtn--cosmic-raid-app.us-central1.hosted.app";
 
@@ -98,11 +99,15 @@ export async function GET(request: NextRequest) {
         
         // Save the admin info to the global 'admins' collection
         await saveAdminInfo(adminDiscordId, adminData);
+
+        // Create a server-side session
+        const session = await getSession();
+        session.adminId = adminDiscordId;
+        session.isLoggedIn = true;
+        await session.save();
         
-        // Redirect to the root page with the admin ID to be stored in localStorage
-    const redirectUrl = new URL('/', baseUrl);
-        redirectUrl.searchParams.set('adminId', adminDiscordId);
-        return NextResponse.redirect(redirectUrl);
+        // Redirect directly to the dashboard
+        return NextResponse.redirect(new URL('/dashboard', baseUrl));
 
     } catch (e) {
         console.error("Discord callback error:", e);

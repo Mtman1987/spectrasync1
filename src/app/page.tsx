@@ -1,113 +1,26 @@
 
-// src/app/page.tsx
-"use client"
-
-import { SetupClient } from "@/app/setup-client";
+// src/app/page.tsx (Server Component)
+import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/session';
 import { CosmicRaidLogo } from "@/components/icons";
-import { getAdminInfo } from "./actions";
-import { redirect, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { useCommunity } from "@/context/community-context";
-
 
 export default function HomePage() {
-    const searchParams = useSearchParams();
-    const errorFromQuery = searchParams.get('error');
-    const adminIdFromQuery = searchParams.get('adminId');
-    const { selectedGuild, adminId, setAdminId, loading: communityLoading } = useCommunity();
-
-    useEffect(() => {
-        // This effect handles setting the admin ID from the URL query param
-        // on initial login, or loading it from localStorage on subsequent visits.
-        if (adminIdFromQuery && adminIdFromQuery !== adminId) {
-            setAdminId(adminIdFromQuery);
-            // Clean the URL
-            window.history.replaceState(null, '', '/');
-        }
-    }, [adminIdFromQuery, adminId, setAdminId]);
-    
-    // This effect handles redirecting an already-logged-in user to the dashboard.
-    useEffect(() => {
-        if (!communityLoading && selectedGuild) {
-             redirect('/dashboard');
-        }
-    }, [selectedGuild, communityLoading]);
-
-    if (communityLoading) {
-        return <SetupPage><p>Loading Community...</p></SetupPage>
-    }
-
-    // If there is no adminId after loading, it means the user is logged out.
-    // Show the setup client which contains the "Connect Discord" button.
-    if (!adminId) {
-         return (
-            <SetupPage>
-                <SetupClient 
-                    user={null}
-                    adminGuilds={[]}
-                    twitchInfo={null}
-                    error={errorFromQuery}
-                    adminDiscordId={null}
-                />
-            </SetupPage>
-        );
-    }
-    
-    // If there is an adminId, we are in a logged-in state.
-    // The SetupLoader will fetch the admin's guilds and show the selection UI.
-    return (
-        <SetupPage>
-            <SetupLoader adminDiscordId={adminId} error={errorFromQuery} />
-        </SetupPage>
-    )
+  // This page is now a simple entry point.
+  // We'll add logic to redirect if already logged in later.
+  return (
+    <SetupPage>
+      <p className="text-muted-foreground mb-6">
+        The suite of powerful tools to help you manage, engage, and grow your Twitch community.
+      p>
+      <a
+        href="/api/auth/discord"
+        className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      >
+        Login with Discord
+      </a>
+    </SetupPage>
+  );
 }
-
-function SetupLoader({ adminDiscordId, error }: { adminDiscordId: string, error: string | null }) {
-    const [data, setData] = useState<{ user: any; guilds: any[]; twitchInfo: any | null } | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [fetchError, setFetchError] = useState<string | null>(error);
-
-    const fetchProfile = useCallback(async () => {
-        setLoading(true);
-        const { value: adminData, error: adminError } = await getAdminInfo(adminDiscordId);
-
-        if (adminError) {
-            setFetchError(adminError);
-            setData(null);
-        } else if (adminData) {
-            setData({
-                user: adminData.discordInfo || null,
-                guilds: adminData.discordUserGuilds || [],
-                twitchInfo: adminData.twitchInfo || null,
-            });
-            setFetchError(null);
-        } else {
-            setData(null);
-            setFetchError("Could not load your admin profile. Please try logging in again.");
-        }
-        setLoading(false);
-    }, [adminDiscordId]);
-
-    useEffect(() => {
-        fetchProfile();
-    }, [fetchProfile]);
-
-    if (loading) {
-        return <p>Loading your profile...</p>;
-    }
-
-    return (
-        <SetupClient
-            user={data?.user || null}
-            adminGuilds={data?.guilds || []}
-            twitchInfo={data?.twitchInfo || null}
-            error={fetchError}
-            adminDiscordId={adminDiscordId}
-            onProfileRefresh={fetchProfile}
-        />
-    )
-}
-
 
 function SetupPage({ children }: { children: React.ReactNode }) {
   return (
