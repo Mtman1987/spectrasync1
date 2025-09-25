@@ -16,15 +16,28 @@ const firebaseConfig = {
 
 // Client-side initialization.
 function getClientApp() {
+  if (typeof window === 'undefined') {
+    // Return null during server-side rendering/build
+    return null;
+  }
+  
   if (getApps().length) {
     return getApp();
   }
   return initializeApp(firebaseConfig);
 }
 
-const app = getClientApp();
-const auth = getAuth(app);
-const db = getFirestore(app);
+let app: any = null;
+let auth: any = null;
+let db: any = null;
+
+if (typeof window !== 'undefined') {
+  app = getClientApp();
+  if (app) {
+    auth = getAuth(app);
+    db = getFirestore(app);
+  }
+}
 
 
 export { db, auth, getClientApp };

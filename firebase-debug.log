@@ -1,0 +1,33 @@
+[debug] [2025-09-25T20:33:59.339Z] ----------------------------------------------------------------------
+[debug] [2025-09-25T20:33:59.343Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\mtman\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only apphosting
+[debug] [2025-09-25T20:33:59.343Z] CLI Version:   14.15.2
+[debug] [2025-09-25T20:33:59.343Z] Platform:      win32
+[debug] [2025-09-25T20:33:59.343Z] Node Version:  v24.4.0
+[debug] [2025-09-25T20:33:59.344Z] Time:          Thu Sep 25 2025 15:33:59 GMT-0500 (Central Daylight Time)
+[debug] [2025-09-25T20:33:59.344Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-09-25T20:33:59.568Z] Object "/apphosting" in "firebase.json" is missing required property: {"missingProperty":"backendId"}
+[debug] [2025-09-25T20:33:59.568Z] Field "/apphosting" in "firebase.json" is possibly invalid: must be array
+[debug] [2025-09-25T20:33:59.569Z] Field "/apphosting" in "firebase.json" is possibly invalid: must match a schema in anyOf
+[debug] [2025-09-25T20:33:59.573Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-09-25T20:33:59.573Z] > authorizing via signed-in user (mtman1987@gmail.com)
+[debug] [2025-09-25T20:33:59.573Z] [iam] checking project cosmic-raid-app for permissions ["firebase.projects.get",null]
+[debug] [2025-09-25T20:33:59.575Z] Checked if tokens are valid: true, expires at: 1758833412495
+[debug] [2025-09-25T20:33:59.575Z] Checked if tokens are valid: true, expires at: 1758833412495
+[debug] [2025-09-25T20:33:59.576Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/cosmic-raid-app:testIamPermissions [none]
+[debug] [2025-09-25T20:33:59.576Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/cosmic-raid-app:testIamPermissions x-goog-quota-user=projects/cosmic-raid-app
+[debug] [2025-09-25T20:33:59.576Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/cosmic-raid-app:testIamPermissions {"permissions":["firebase.projects.get",null]}
+[debug] [2025-09-25T20:33:59.771Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/cosmic-raid-app:testIamPermissions 200
+[debug] [2025-09-25T20:33:59.771Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/cosmic-raid-app:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2025-09-25T20:33:59.771Z] [iam] error while checking permissions, command may fail: Authorization failed. This account is missing the following required permissions on project cosmic-raid-app:
+
+  
+[info] 
+[info] === Deploying to 'cosmic-raid-app'...
+[info] 
+[info] i  deploying apphosting 
+[debug] [2025-09-25T20:33:59.775Z] Checked if tokens are valid: true, expires at: 1758833412495
+[debug] [2025-09-25T20:33:59.775Z] Checked if tokens are valid: true, expires at: 1758833412495
+[debug] [2025-09-25T20:33:59.775Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/cosmic-raid-app/serviceAccounts/firebase-app-hosting-compute@cosmic-raid-app.iam.gserviceaccount.com:testIamPermissions [none]
+[debug] [2025-09-25T20:33:59.775Z] >>> [apiv2][(partial)header] POST https://iam.googleapis.com/v1/projects/cosmic-raid-app/serviceAccounts/firebase-app-hosting-compute@cosmic-raid-app.iam.gserviceaccount.com:testIamPermissions x-goog-quota-user=projects/cosmic-raid-app
+[debug] [2025-09-25T20:33:59.775Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/cosmic-raid-app/serviceAccounts/firebase-app-hosting-compute@cosmic-raid-app.iam.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
