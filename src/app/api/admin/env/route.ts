@@ -7,13 +7,7 @@ function getExpectedSecret() {
 
 function validateSecret(request: NextRequest) {
   const expected = getExpectedSecret();
-  // If server hasn't configured a BOT_SECRET_KEY we allow permissive access.
-  // This is intentionally permissive to support one-off uploads during setup.
-  // Remove this behavior in production or set BOT_SECRET_KEY in the deployment.
-  if (!expected) {
-    console.warn("Server BOT_SECRET_KEY not configured; allowing permissive admin API access");
-    return { valid: true, note: "no-server-secret" };
-  }
+  if (!expected) return { valid: false, reason: "Server BOT_SECRET_KEY not configured" };
   let provided = request.headers.get("x-bot-secret") ?? request.headers.get("authorization");
   if (!provided && request.method === "GET") {
     provided = request.nextUrl.searchParams.get("secret");
