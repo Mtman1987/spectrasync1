@@ -2,13 +2,11 @@ import "dotenv/config";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { getAdminDb } from "@/lib/firebase-admin";
+import { getRuntimeValue } from "@/lib/runtime-config";
 
 interface VipLiveConfigDoc {
   channelId: string | null;
   guildId: string;
-  headerTitle?: string | null;
-  headerMessage?: string | null;
-  maxEmbedsPerMessage?: number | null;
   refreshHintSeconds?: number | null;
   dispatchEnabled?: boolean;
   lastUpdatedAt?: string | null;
@@ -16,9 +14,8 @@ interface VipLiveConfigDoc {
 
 const endpoint = process.env.VIP_EMBED_ENDPOINT ?? "http://localhost:9002/api/embeds";
 const defaultIntervalSeconds = Number.parseInt(process.env.VIP_REFRESH_INTERVAL_SECONDS ?? "420", 10) || 420;
-const botSecret = process.env.BOT_SECRET_KEY ?? "";
-const guildIdFromEnv = process.env.GUILD_ID ?? process.env.HARDCODED_GUILD_ID ?? "";
 const vipConfigDocId = "vipLiveConfig";
+let botSecret = process.env.BOT_SECRET_KEY ?? "";
 
 let stopRequested = false;
 
@@ -31,15 +28,6 @@ process.once("SIGTERM", () => {
   console.info("[vip-live-refresh] Caught SIGTERM. Shutting down.");
   stopRequested = true;
 });
-
-function resolveGuildId(): string | null {
-  if (guildIdFromEnv.trim().length > 0) {
-    return guildIdFromEnv.trim();
-  }
-
-  console.warn("[vip-live-refresh] GUILD_ID is not set. Waiting for configuration.");
-  return null;
-}
 
 async function fetchVipConfig(guildId: string): Promise<VipLiveConfigDoc | null> {
   const db = getAdminDb();
@@ -57,37 +45,27 @@ async function fetchVipConfig(guildId: string): Promise<VipLiveConfigDoc | null>
   return doc.data() as VipLiveConfigDoc;
 }
 
-function buildDispatchBody(guildId: string, config: VipLiveConfigDoc) {
-  const body: Record<string, unknown> = {
-    type: "vip-live",
-    guildId,
-    channelId: config.channelId,
-    dispatch: true,
-  };
-
-  if (config.headerTitle) {
-    body.headerTitle = config.headerTitle;
-  }
-  if (config.headerMessage) {
-    body.headerMessage = config.headerMessage;
-  }
-  if (typeof config.maxEmbedsPerMessage === "number") {
-    body.maxEmbedsPerMessage = config.maxEmbedsPerMessage;
-  }
-
-  return body;
-}
-
 async function dispatchVipEmbed(guildId: string, config: VipLiveConfigDoc) {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
 
+  // Ensure we have the latest secret
+  const runtimeSecret = await getRuntimeValue<string>("BOT_SECRET_KEY");
+  if (runtimeSecret) botSecret = runtimeSecret;
+
   if (botSecret.trim().length > 0) {
     headers["x-bot-secret"] = botSecret.trim();
   }
 
-  const body = buildDispatchBody(guildId, config);
+  const baseUrl = await getRuntimeValue<string>("NEXT_PUBLIC_BASE_URL", process.env.NEXT_PUBLIC_BASE_URL);
+  if (!baseUrl) {
+    console.error("[vip-live-refresh] NEXT_PUBLIC_BASE_URL is not configured. Cannot dispatch.");
+    return null;
+  }
+
+  const endpoint = new URL("/api/embeds", baseUrl).toString();
+  const body = { type: "vip-live", guildId, dispatch: true };
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -115,13 +93,15 @@ async function dispatchVipEmbed(guildId: string, config: VipLiveConfigDoc) {
 
 async function loop() {
   while (!stopRequested) {
-    const guildId = resolveGuildId();
+    const guildId = await getRuntimeValue<string>("GUILD_ID", process.env.GUILD_ID);
     if (!guildId) {
+      console.warn("[vip-live-refresh] GUILD_ID is not configured. Waiting...");
       await sleep(defaultIntervalSeconds * 1000);
       continue;
     }
 
     let config: VipLiveConfigDoc | null = null;
+    console.log(`[vip-live-refresh] Checking config for guild ${guildId}...`);
 
     try {
       config = await fetchVipConfig(guildId);

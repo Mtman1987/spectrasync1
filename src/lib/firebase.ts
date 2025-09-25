@@ -3,13 +3,15 @@ import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  "projectId": "cosmic-raid-app",
-  "appId": "1:412519609799:web:ba8fc21ad0fe1bd20655e2",
-  "storageBucket": "cosmic-raid-app.firebasestorage.app",
-  "apiKey": "AIzaSyCtfKnp_2QgEi8KJZm_4zG2KsOvtD2nAuI",
-  "authDomain": "cosmic-raid-app.firebaseapp.com",
-  "messagingSenderId": "412519609799"
+  apiKey: "AIzaSyCtfKnp_2QgEi8KJZm_4zG2KsOvtD2nAuI",
+  authDomain: "cosmic-raid-app.firebaseapp.com",
+  projectId: "cosmic-raid-app",
+  storageBucket: "cosmic-raid-app.firebasestorage.app",
+  messagingSenderId: "412519609799",
+  appId: "1:412519609799:web:4c39c37bca30f7f50655e2",
+  measurementId: "G-9T9MRKLE79"
 };
 
 // Client-side initialization.
