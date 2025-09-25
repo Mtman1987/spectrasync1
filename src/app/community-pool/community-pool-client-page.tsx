@@ -19,7 +19,6 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { getSettings } from "@/app/settings/actions";
-import { useCommunity } from "@/context/community-context";
 
 interface CommunityPoolClientPageProps {
   initialUsers: LiveUser[];
@@ -28,10 +27,9 @@ interface CommunityPoolClientPageProps {
   guildId: string;
 }
 
-function QuickLinkCard() {
+function QuickLinkCard({ guildId }: { guildId: string }) {
     const { toast } = useToast();
     const [quickLink, setQuickLink] = useState("");
-    const { selectedGuild: guildId } = useCommunity();
 
     useEffect(() => {
         if (guildId) {
@@ -100,7 +98,7 @@ export function CommunityPoolClientPage({
                 <p className="text-sm text-muted-foreground">Opting-in means they will appear on this page and in the Discord embed whenever they go live.</p>
             </CardContent>
         </Card>
-        <QuickLinkCard />
+        <QuickLinkCard guildId={guildId} />
       </div>
 
 

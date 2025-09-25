@@ -14,14 +14,12 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getAttendanceRecord } from "./actions";
 import { Loader2, Search, History } from "lucide-react";
-import { useCommunity } from "@/context/community-context";
 
-export function AttendanceCard() {
+export function AttendanceCard({ guildId }: { guildId: string | null }) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [userId, setUserId] = useState("");
   const [searchResult, setSearchResult] = useState<string | null>(null);
-  const { selectedGuild: guildId } = useCommunity();
   
   const handleSearch = async () => {
     if (!guildId) {
@@ -80,4 +78,3 @@ export function AttendanceCard() {
     </Card>
   );
 }
-

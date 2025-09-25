@@ -1,19 +1,17 @@
 
 "use client"
 
-import { getLiveCommunityPoolUsers } from "@/app/actions";
+import { getLiveCommunityPoolUsers, getAdminInfo } from "@/app/actions";
 import { CommunityPoolClientPage } from "@/app/community-pool/community-pool-client-page";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useEffect, useState, Suspense } from "react";
 import type { LiveUser } from "@/app/raid-pile/types";
 import { useSearchParams } from "next/navigation";
-import { getAdminDb } from "@/lib/firebase-admin"; // This is a server import, can't be used directly
 import { doc, getDoc, getFirestore } from "firebase/firestore";
 import { getClientApp } from "@/lib/firebase";
 
 
-function CommunityPoolPageContent() {
-    const [guildId, setGuildId] = useState<string | null>(null);
+function CommunityPoolPageContent({ guildId }: { guildId: string | null }) {
     const [initialUsers, setInitialUsers] = useState<LiveUser[]>([]);
     const [spotlightTwitchId, setSpotlightTwitchId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -21,38 +19,22 @@ function CommunityPoolPageContent() {
     const isEmbedded = searchParams.has("frame_id");
 
     useEffect(() => {
-        const selectedGuildId = localStorage.getItem('selectedGuildId');
-        setGuildId(selectedGuildId);
-
         async function fetchData() {
-            if (!selectedGuildId) {
+            if (!guildId) {
                 console.log("No guild ID found, skipping data fetch.");
                 setIsLoading(false);
                 return;
             };
             setIsLoading(true);
 
-            // Fetch users and spotlight info in parallel
-            const users = await getLiveCommunityPoolUsers(selectedGuildId);
+            const users = await getLiveCommunityPoolUsers(guildId);
             setInitialUsers(users);
-
-            try {
-                const db = getFirestore(getClientApp());
-                const settingsDocRef = doc(db, `communities/${selectedGuildId}/settings/communityPoolChannel`);
-                const settingsDoc = await getDoc(settingsDocRef);
-                if (settingsDoc.exists()) {
-                    setSpotlightTwitchId(settingsDoc.data().spotlightTwitchId || null);
-                }
-            } catch (error) {
-                console.error("Error fetching spotlight user:", error);
-                setSpotlightTwitchId(null);
-            }
 
             setIsLoading(false);
         }
 
         fetchData();
-    }, []);
+    }, [guildId]);
     
     const pageContent = (
          <CommunityPoolClientPage
@@ -75,10 +57,22 @@ function CommunityPoolPageContent() {
 }
 
 
-function CommunityPoolPageWrapper() {
+async function CommunityPoolPageWrapper() {
+  const { getSession } = await import('@/lib/session');
+  const { getAdminInfo } = await import('@/app/actions');
+  const { redirect } = await import('next/navigation');
+
+  const session = await getSession();
+  if (!session.isLoggedIn || !session.adminId) {
+    redirect('/');
+  }
+
+  const { value: adminData } = await getAdminInfo(session.adminId);
+  const guildId = adminData?.selectedGuild ?? null;
+
   return (
     <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Loading Community Pool...</div>}>
-      <CommunityPoolPageContent/>
+      <CommunityPoolPageContent guildId={guildId} />
     </Suspense>
   );
 }

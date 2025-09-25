@@ -17,23 +17,20 @@ import type { RaidPile, LiveUser } from "./types";
 import { LeaderboardCard } from "@/components/leaderboard-card";
 import type { LeaderboardUser } from "@/app/leaderboard/actions";
 import { Twitch } from "@/components/icons";
-import { useCommunity } from "@/context/community-context";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import { getSettings } from "@/app/settings/actions";
 
 interface RaidPileClientPageProps {
+  guildId: string;
   initialRaidPiles: RaidPile[];
   leaderboardData: LeaderboardUser[];
-  isLoading: boolean;
-  parentDomain: string;
 }
 
-function QuickLinkCard() {
+function QuickLinkCard({ guildId }: { guildId: string }) {
     const { toast } = useToast();
     const [quickLink, setQuickLink] = useState("");
-    const { selectedGuild: guildId } = useCommunity();
 
     useEffect(() => {
         if (guildId) {
@@ -73,17 +70,16 @@ function QuickLinkCard() {
 export function RaidPileClientPage({
   initialRaidPiles,
   leaderboardData,
-  isLoading: initialIsLoading,
-  parentDomain,
+  guildId,
 }: RaidPileClientPageProps) {
-  const { selectedGuild: guildId } = useCommunity();
   const [raidPiles, setRaidPiles] = useState<RaidPile[]>(initialRaidPiles);
-  const [isLoading, setIsLoading] = useState(initialIsLoading);
+  const [isLoading, setIsLoading] = useState(false); // Data is pre-fetched by the server component
+  const [parentDomain, setParentDomain] = useState("");
   
   useEffect(() => {
     setRaidPiles(initialRaidPiles);
-    setIsLoading(initialIsLoading);
-  }, [initialRaidPiles, initialIsLoading]);
+    setParentDomain(window.location.hostname);
+  }, [initialRaidPiles]);
 
   const pileHolder = raidPiles.length > 0 ? raidPiles[0].holder : null;
   const otherLiveUsers =
@@ -179,7 +175,7 @@ export function RaidPileClientPage({
       )}
 
        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <QuickLinkCard />
+            <QuickLinkCard guildId={guildId} />
              <LeaderboardCard leaderboardData={leaderboardData} isLoading={isLoading} />
         </div>
 

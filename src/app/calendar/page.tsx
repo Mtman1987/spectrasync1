@@ -21,7 +21,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DayContent, DayContentProps } from "react-day-picker"
 import { useSearchParams } from "next/navigation"
-import { useCommunity } from "@/context/community-context"
 
 
 const eventIcons = {
@@ -31,10 +30,9 @@ const eventIcons = {
   Admin: Shield,
 };
 
-function CalendarPageContent() {
+function CalendarPageContent({ guildId, adminDiscordId }: { guildId: string | null, adminDiscordId: string | null }) {
   const { toast } = useToast();
   const searchParams = useSearchParams();
-  const { selectedGuild: guildId, adminId: adminDiscordId, loading: communityLoading } = useCommunity();
   
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -57,9 +55,9 @@ function CalendarPageContent() {
 
 
   useEffect(() => {
-    if (guildId && !communityLoading) {
+    if (guildId) {
         fetchData(guildId, currentMonth);
-    } else if (!communityLoading) {
+    } else {
         setIsLoading(false);
     }
   }, [fetchData, currentMonth, guildId, communityLoading]);
@@ -141,6 +139,7 @@ function CalendarPageContent() {
       </div>
 
        {!guildId && !isLoading && !communityLoading && (
+       {!guildId && !isLoading && (
             <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Community Not Found</AlertTitle>
@@ -241,14 +240,24 @@ function CalendarPageContent() {
   return <AppLayout>{pageContent}</AppLayout>;
 }
 
-function CalendarPageWrapper() {
+async function CalendarPageWrapper() {
+  const { getSession } = await import('@/lib/session');
+  const { getAdminInfo } = await import('@/app/actions');
+  const { redirect } = await import('next/navigation');
+
+  const session = await getSession();
+  if (!session.isLoggedIn || !session.adminId) {
+    redirect('/');
+  }
+
+  const { value: adminData } = await getAdminInfo(session.adminId);
+  const guildId = adminData?.selectedGuild ?? null;
+
   return (
     <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Loading Calendar...</div>}>
-      <CalendarPageContent/>
+      <CalendarPageContent guildId={guildId} adminDiscordId={session.adminId} />
     </Suspense>
   );
 }
 
 export default CalendarPageWrapper;
-
-
