@@ -242,7 +242,7 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
     const username = vip.displayName;
 
     // 2. Check cache (using Firestore)
-    const db = getAdminDb();
+    const db = await getAdminDb();
     const cacheRef = db.collection("gifPreviews").doc(clip.id);
     const cacheDoc = await cacheRef.get();
     if (cacheDoc.exists) {
@@ -645,7 +645,7 @@ async function persistVipLiveConfig(
       return;
     }
 
-    const db = getAdminDb();
+    const db = await getAdminDb();
     const settingsRef = db
       .collection("communities")
       .doc(payload.guildId)
@@ -692,7 +692,7 @@ async function getVipLiveConfig(guildId: string): Promise<{ lastDispatchMessageI
     return null;
   }
   try {
-    const db = getAdminDb();
+    const db = await getAdminDb();
     const docRef = db
       .collection("communities")
       .doc(guildId)

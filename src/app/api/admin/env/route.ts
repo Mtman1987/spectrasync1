@@ -7,14 +7,9 @@ function getExpectedSecret() {
 
 function validateSecret(request: NextRequest) {
   const expected = getExpectedSecret();
-  // If the server-side BOT_SECRET_KEY is not configured we fall back to
-  // permissive mode: accept the request but log a warning. This is
-  // intentionally permissive to allow ad-hoc uploads for dev/owner
-  // convenience when you don't want to manage Cloud Run env vars.
   if (!expected) {
-    // eslint-disable-next-line no-console
-    console.warn('/api/admin/env: Server BOT_SECRET_KEY not configured; running in permissive mode');
-    return { valid: true };
+    // If the server-side BOT_SECRET_KEY is not configured, all admin requests will be rejected.
+    return { valid: false, reason: "Server BOT_SECRET_KEY not configured" };
   }
   let provided = request.headers.get("x-bot-secret") ?? request.headers.get("authorization");
   if (!provided && request.method === "GET") {
@@ -70,7 +65,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No valid keys to write" }, { status: 400 });
     }
 
-    const db = getAdminDb();
+    const db = await getAdminDb();
     const ref = db.collection("app_settings").doc(CONFIG_DOC);
     await ref.set({ ...(toWrite as Record<string, unknown>), updatedAt: new Date().toISOString() }, { merge: true });
 
@@ -89,7 +84,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized", reason: secret.reason }, { status: 401 });
     }
 
-    const db = getAdminDb();
+    const db = await getAdminDb();
     const ref = db.collection("app_settings").doc(CONFIG_DOC);
     const doc = await ref.get();
     if (!doc.exists) {

@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 
 import admin from "firebase-admin";
+import { getRuntimeValue } from "./runtime-config";
 import type { App, AppOptions } from "firebase-admin/app";
 import type { Firestore } from "firebase-admin/firestore";
 
@@ -74,7 +75,7 @@ function readServiceAccountFromFile(filePath: string): ServiceAccountConfig | nu
   }
 }
 
-function resolveServiceAccount(): ServiceAccountConfig | null {
+async function resolveServiceAccount(): Promise<ServiceAccountConfig | null> {
   const inlineJson = process.env.FIREBASE_ADMIN_SDK_JSON ?? process.env.FIREBASE_SERVICE_ACCOUNT ?? null;
   if (inlineJson) {
     const parsedInline = parseServiceAccount(inlineJson);
@@ -132,16 +133,31 @@ function resolveServiceAccount(): ServiceAccountConfig | null {
     console.warn(`Service account file not found at provided path: ${explicitPath}. Tried CWD and repo-relative locations.`);
   }
 
+  // Fallback 1: Try a hardcoded local path
   const localPath = path.resolve(process.cwd(), "firebase-service-account.json");
-  return readServiceAccountFromFile(localPath);
+  const fromLocalFile = readServiceAccountFromFile(localPath);
+  if (fromLocalFile) {
+    return fromLocalFile;
+  }
+
+  // Fallback 2: Try to get it from the runtime config in Firestore.
+  // This is how the deployed app will get its credentials.
+  const b64FromRuntime = await getRuntimeValue<string>("FIREBASE_ADMIN_SDK_JSON_BASE64");
+  if (b64FromRuntime) {
+    const decoded = Buffer.from(b64FromRuntime, "base64").toString("utf8");
+    const parsed = parseServiceAccount(decoded);
+    if (parsed) return parsed;
+  }
+
+  return null;
 }
 
-function ensureAdminApp(): void {
+async function ensureAdminApp(): Promise<void> {
   if (admin.apps.length > 0) {
     return;
   }
 
-  const serviceAccount = resolveServiceAccount();
+  const serviceAccount = await resolveServiceAccount();
 
   const appOptions: AppOptions = {};
   if (serviceAccount) {
@@ -166,19 +182,19 @@ function ensureAdminApp(): void {
   }
 }
 
-export function getAdminDb(): Firestore {
+export async function getAdminDb(): Promise<Firestore> {
   if (db) {
     return db;
   }
 
-  ensureAdminApp();
+  await ensureAdminApp();
 
   db = admin.firestore();
   globalForFirebase.__FIREBASE_ADMIN_DB__ = db;
   return db;
 }
 
-export function getAdminApp(): App {
-  ensureAdminApp();
+export async function getAdminApp(): Promise<App> {
+  await ensureAdminApp();
   return admin.app();
 }

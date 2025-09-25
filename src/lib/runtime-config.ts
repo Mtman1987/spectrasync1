@@ -11,7 +11,7 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
   }
 
   try {
-    const db = getAdminDb();
+    const db = await getAdminDb();
     const ref = db.collection("app_settings").doc("runtime");
     const doc = await ref.get();
     if (!doc.exists) {

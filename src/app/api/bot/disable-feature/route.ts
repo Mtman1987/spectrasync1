@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Unsupported feature: ${feature}` }, { status: 400 });
     }
 
-    const db = getAdminDb();
+    const db = await getAdminDb();
     const settingsRef = db.collection("communities").doc(guildId).collection("settings").doc(configId);
     const doc = await settingsRef.get();
 
