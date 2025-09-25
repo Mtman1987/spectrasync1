@@ -7,7 +7,15 @@ function getExpectedSecret() {
 
 function validateSecret(request: NextRequest) {
   const expected = getExpectedSecret();
-  if (!expected) return { valid: false, reason: "Server BOT_SECRET_KEY not configured" };
+  // If the server-side BOT_SECRET_KEY is not configured we fall back to
+  // permissive mode: accept the request but log a warning. This is
+  // intentionally permissive to allow ad-hoc uploads for dev/owner
+  // convenience when you don't want to manage Cloud Run env vars.
+  if (!expected) {
+    // eslint-disable-next-line no-console
+    console.warn('/api/admin/env: Server BOT_SECRET_KEY not configured; running in permissive mode');
+    return { valid: true };
+  }
   let provided = request.headers.get("x-bot-secret") ?? request.headers.get("authorization");
   if (!provided && request.method === "GET") {
     provided = request.nextUrl.searchParams.get("secret");
