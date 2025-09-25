@@ -18,7 +18,6 @@ import { PointSystemForm } from "@/app/settings/point-system-form";
 import { ClipSettingsForm } from "@/app/settings/clip-settings-form";
 import { useRouter } from "next/navigation";
 import { AdminAccountCard } from "@/components/admin-account-card";
-import { useCommunity } from "@/context/community-context";
 
 function AddWebhookForm({ guildId, onWebhookAdded }: { guildId: string, onWebhookAdded: () => void }) {
     const { toast } = useToast();
@@ -368,9 +367,8 @@ function DevToolsCard({ guildId, adminId }: { guildId: string, adminId: string |
 }
 
 
-export function SettingsClientPage({ guildId, initialCommunityInfo }: { guildId: string, initialCommunityInfo: any }) {
+export function SettingsClientPage({ guildId, adminId, initialCommunityInfo }: { guildId: string, adminId: string | null, initialCommunityInfo: any }) {
     const router = useRouter();
-    const { adminId } = useCommunity();
     const [adminProfile, setAdminProfile] = useState<any>(null);
 
     const fetchAdminProfile = async (id: string) => {
@@ -410,8 +408,8 @@ export function SettingsClientPage({ guildId, initialCommunityInfo }: { guildId:
                         onDiscordRelink={handleLinkDiscord}
                     />
 
-                    <PointSystemForm />
-                    <ClipSettingsForm />
+                    <PointSystemForm guildId={guildId} />
+                    <ClipSettingsForm guildId={guildId} />
                     <LinkConfigForm guildId={guildId} />
                     <WebhooksList guildId={guildId} />
                     <GifTestCard guildId={guildId} />
@@ -421,15 +419,3 @@ export function SettingsClientPage({ guildId, initialCommunityInfo }: { guildId:
         </AppLayout>
     );
 }
-
-
-
-
-
-
-
-
-
-
-
-

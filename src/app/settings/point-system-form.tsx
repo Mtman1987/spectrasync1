@@ -27,7 +27,6 @@ import { useTransition, useState, useEffect } from "react";
 import { Loader2, Medal, Wand2 } from "lucide-react";
 import { saveSettings, getSettings } from "./actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useCommunity } from "@/context/community-context";
 
 const PointsFormSchema = z.object({
     // Point Awards
@@ -41,10 +40,9 @@ const PointsFormSchema = z.object({
 });
 
 
-export function PointSystemForm() {
+export function PointSystemForm({ guildId }: { guildId: string | null }) {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
-    const { selectedGuild: guildId } = useCommunity();
 
     const form = useForm<z.infer<typeof PointsFormSchema>>({ 
         resolver: zodResolver(PointsFormSchema),
@@ -165,4 +163,3 @@ export function PointSystemForm() {
         </Card>
     )
 }
-

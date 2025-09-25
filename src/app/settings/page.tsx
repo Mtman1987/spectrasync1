@@ -1,50 +1,36 @@
 
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense } from "react";
 import { SettingsClientPage } from "./settings-client";
 import { redirect } from "next/navigation";
 import { getAdminInfo } from "@/app/actions";
-import { useCommunity } from "@/context/community-context";
 
-export default function SettingsPage() {
-    const { adminId, selectedGuild, loading: communityLoading } = useCommunity();
-    const [initialCommunityInfo, setInitialCommunityInfo] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+async function SettingsPageContent() {
+    const { getSession } = await import('@/lib/session');
+    const session = await getSession();
 
-    useEffect(() => {
-        if (communityLoading) {
-            return; // Wait for community context to be ready
-        }
-        
-        if (!adminId) {
-            redirect('/');
-            return;
-        }
-
-        if (!selectedGuild) {
-            redirect('/');
-            return;
-        }
-        
-        async function fetchInfo() {
-            const { value: adminData } = await getAdminInfo(adminId!);
-            const communityInfo = adminData?.discordUserGuilds?.find((g: any) => g.id === selectedGuild) || null;
-            setInitialCommunityInfo(communityInfo);
-            setLoading(false);
-        }
-
-        fetchInfo();
-
-    }, [adminId, selectedGuild, communityLoading]);
-
-    if (loading || communityLoading) {
-         return <div className="flex h-screen w-full items-center justify-center">Loading Settings...</div>;
+    if (!session.isLoggedIn || !session.adminId) {
+        redirect('/');
     }
 
+    const { value: adminData } = await getAdminInfo(session.adminId);
+    const selectedGuild = adminData?.selectedGuild;
+
+    if (!selectedGuild) {
+        // Or render a message asking them to select a guild
+        redirect('/dashboard');
+    }
+
+    const initialCommunityInfo = adminData?.discordUserGuilds?.find((g: any) => g.id === selectedGuild) || null;
+
+    return <SettingsClientPage guildId={selectedGuild} adminId={session.adminId} initialCommunityInfo={initialCommunityInfo} />
+}
+
+export default function SettingsPage() {
     return (
         <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Loading Settings...</div>}>
-           <SettingsClientPage guildId={selectedGuild!} initialCommunityInfo={initialCommunityInfo} />
+           <SettingsPageContent />
         </Suspense>
     )
 }

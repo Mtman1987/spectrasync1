@@ -1,30 +1,25 @@
 
 "use client"
 
-import { getLiveVipUsers } from "@/app/actions";
+import { getLiveVipUsers, getAdminInfo } from "@/app/actions";
 import { VipLiveClientPage } from "@/app/vip-live/vip-live-client-page";
 import { AppLayout } from "@/components/layout/app-layout";
 import { useEffect, useState, Suspense, useCallback } from "react";
 import type { LiveUser } from "@/app/raid-pile/types";
 import { useSearchParams } from "next/navigation";
-import { useCommunity } from "@/context/community-context";
-import { getAdminDb } from "@/lib/firebase-admin"; // Cannot be used on client
 import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
 import { getClientApp } from "@/lib/firebase";
 
 
-function VipLivePageContent() {
-    const { selectedGuild: guildId, loading: communityLoading } = useCommunity();
+function VipLivePageContent({ guildId }: { guildId: string | null }) {
     const [liveVips, setLiveVips] = useState<LiveUser[]>([]);
-    const [allVips, setAllVips] = useState<any[]>([]); // To store all VIP user docs
+    const [allVips, setAllVips] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [parentDomain, setParentDomain] = useState("");
     const searchParams = useSearchParams();
     const isEmbedded = searchParams.has("frame_id");
 
     const fetchData = useCallback(async () => {
         if (!guildId) {
-            console.log("No guild ID found, skipping data fetch.");
             setIsLoading(false);
             return;
         };
@@ -35,7 +30,6 @@ function VipLivePageContent() {
         const q = query(usersRef, where("isVip", "==", true));
         const vipSnapshot = await getDocs(q);
         const vipDocs = vipSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
         setAllVips(vipDocs);
         
         const liveVipUsers = await getLiveVipUsers(guildId);
@@ -45,18 +39,14 @@ function VipLivePageContent() {
     }, [guildId]);
 
     useEffect(() => {
-        setParentDomain(window.location.hostname);
-        if (!communityLoading) {
-            fetchData();
-        }
-    }, [communityLoading, fetchData]);
+        fetchData();
+    }, [fetchData]);
     
     const pageContent = (
          <VipLiveClientPage
             liveVips={liveVips}
             allVips={allVips}
             isLoading={isLoading}
-            parentDomain={parentDomain}
             guildId={guildId || ""}
             onVipChanged={fetchData}
           />
@@ -74,10 +64,22 @@ function VipLivePageContent() {
 }
 
 
-function VipLivePageWrapper() {
+async function VipLivePageWrapper() {
+  const { getSession } = await import('@/lib/session');
+  const { getAdminInfo } = await import('@/app/actions');
+  const { redirect } = await import('next/navigation');
+
+  const session = await getSession();
+  if (!session.isLoggedIn || !session.adminId) {
+    redirect('/');
+  }
+
+  const { value: adminData } = await getAdminInfo(session.adminId);
+  const guildId = adminData?.selectedGuild ?? null;
+
   return (
     <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Loading VIPs...</div>}>
-      <VipLivePageContent />
+      <VipLivePageContent guildId={guildId} />
     </Suspense>
   );
 }

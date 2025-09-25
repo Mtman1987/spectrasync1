@@ -11,7 +11,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { useCommunity } from "@/context/community-context";
 import { saveSettings, getSettings } from "./actions";
 import { Loader2, Film } from "lucide-react";
 
@@ -22,9 +21,8 @@ const ClipSettingsSchema = z.object({
     clipGifMaxDurationSeconds: z.coerce.number().min(0, "Duration must be zero or greater."),
 });
 
-export function ClipSettingsForm() {
+export function ClipSettingsForm({ guildId }: { guildId: string | null }) {
     const { toast } = useToast();
-    const { selectedGuild: guildId } = useCommunity();
     const [isPending, startTransition] = useTransition();
 
     const form = useForm<z.infer<typeof ClipSettingsSchema>>({

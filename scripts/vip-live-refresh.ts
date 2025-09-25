@@ -12,10 +12,8 @@ interface VipLiveConfigDoc {
   lastUpdatedAt?: string | null;
 }
 
-const endpoint = process.env.VIP_EMBED_ENDPOINT ?? "http://localhost:9002/api/embeds";
 const defaultIntervalSeconds = Number.parseInt(process.env.VIP_REFRESH_INTERVAL_SECONDS ?? "420", 10) || 420;
 const vipConfigDocId = "vipLiveConfig";
-let botSecret = process.env.BOT_SECRET_KEY ?? "";
 
 let stopRequested = false;
 
@@ -50,9 +48,7 @@ async function dispatchVipEmbed(guildId: string, config: VipLiveConfigDoc) {
     "Content-Type": "application/json",
   };
 
-  // Ensure we have the latest secret
-  const runtimeSecret = await getRuntimeValue<string>("BOT_SECRET_KEY");
-  if (runtimeSecret) botSecret = runtimeSecret;
+  const botSecret = await getRuntimeValue<string>("BOT_SECRET_KEY", process.env.BOT_SECRET_KEY);
 
   if (botSecret.trim().length > 0) {
     headers["x-bot-secret"] = botSecret.trim();
