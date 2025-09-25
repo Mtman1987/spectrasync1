@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { buildCalendarEmbed } from "@/app/calendar/actions";
 import { buildLeaderboardEmbed } from "@/app/leaderboard/actions";
 import { getLiveVipUsers, getTwitchClips } from "@/app/actions";
+import { deleteDiscordMessages, validateBotSecret } from "@/lib/bot-utils";
 import { getAdminDb } from "@/lib/firebase-admin";
 import type { LiveUser } from "@/app/raid-pile/types";
 
@@ -65,65 +66,6 @@ const MAX_VIP_CARDS = 100;
 const DISCORD_API_BASE = process.env.DISCORD_API_BASE_URL ?? "https://discord.com/api/v10";
 const VIP_LIVE_CONFIG_DOC_ID = "vipLiveConfig";
 
-const embedBuilders: Record<string, EmbedBuilder> = {
-  calendar: async ({ guildId }) => buildCalendarEmbed(guildId),
-  leaderboard: async ({ guildId }) => buildLeaderboardEmbed(guildId),
-  "vip-live": buildVipLiveEmbed,
-  vip: buildVipLiveEmbed,
-  "community-pool": buildUnsupported("community pool"),
-  community: buildUnsupported("community pool"),
-  "raid-pile": buildUnsupported("raid pile"),
-  pile: buildUnsupported("raid pile"),
-  "raid-train": buildUnsupported("raid train"),
-};
-
-const SECRET_PLACEHOLDERS = new Set([
-  "your-super-secret-key-that-you-share-with-your-bot",
-  "changeme",
-  "placeholder",
-]);
-
-function shouldEnforceSecret(secretValue: string | undefined | null) {
-  if (!secretValue) {
-    return false;
-  }
-
-  const normalized = secretValue.trim().toLowerCase();
-  return normalized.length > 0 && !SECRET_PLACEHOLDERS.has(normalized);
-}
-
-function validateSecret(request: NextRequest) {
-  const expectedSecret = process.env.BOT_SECRET_KEY;
-  if (!shouldEnforceSecret(expectedSecret)) {
-    return { valid: true };
-  }
-
-  let providedSecret =
-    request.headers.get("x-bot-secret") ?? request.headers.get("authorization");
-
-  // For GET requests from cron jobs, also check query parameters
-  if (!providedSecret && request.method === "GET") {
-    providedSecret = request.nextUrl.searchParams.get("secret");
-  }
-
-  if (!providedSecret) {
-    return { valid: false };
-  }
-
-  if (providedSecret === expectedSecret) {
-    return { valid: true };
-  }
-
-  if (providedSecret.toLowerCase().startsWith("bearer ")) {
-    const token = providedSecret.slice(7).trim();
-    if (token === expectedSecret) {
-      return { valid: true };
-    }
-  }
-
-  return { valid: false };
-}
-
 function normalizePayload(rawPayload: unknown): EmbedRequestPayload | null {
   if (!rawPayload || typeof rawPayload !== "object") {
     return null;
@@ -164,6 +106,18 @@ function normalizePayload(rawPayload: unknown): EmbedRequestPayload | null {
   };
 
   return normalized;
+}
+
+const embedBuilders: Record<string, EmbedBuilder> = {
+  calendar: async ({ guildId }) => buildCalendarEmbed(guildId),
+  leaderboard: async ({ guildId }) => buildLeaderboardEmbed(guildId),
+  "vip-live": buildVipLiveEmbed,
+  vip: buildVipLiveEmbed,
+  "community-pool": buildUnsupported("community pool"),
+  community: buildUnsupported("community pool"),
+  "raid-pile": buildUnsupported("raid pile"),
+  pile: buildUnsupported("raid pile"),
+  "raid-train": buildUnsupported("raid train"),
 }
 
 function buildUnsupported(feature: string): EmbedBuilder {
@@ -709,53 +663,11 @@ async function getVipLiveConfig(guildId: string): Promise<{ lastDispatchMessageI
   }
 }
 
-async function deleteDiscordMessages(channelId: string, messageIds: string[]) {
-  if (messageIds.length === 0) {
-    return;
-  }
-
-  const botToken = process.env.DISCORD_BOT_TOKEN;
-  if (!botToken) {
-    throw new Error("DISCORD_BOT_TOKEN is not configured.");
-  }
-  const userAgent = process.env.DISCORD_USER_AGENT ?? "SpectraSyncBot/1.0 (+https://spectrasync.app)";
-
-  if (messageIds.length === 1) {
-    const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages/${messageIds[0]}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bot ${botToken}`,
-        "User-Agent": userAgent,
-      },
-    });
-    if (!response.ok && response.status !== 404) {
-      const text = await response.text();
-      console.warn(`Failed to delete single Discord message ${messageIds[0]}: ${text}`);
-    }
-    return;
-  }
-
-  const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages/bulk-delete`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bot ${botToken}`,
-      "Content-Type": "application/json",
-      "User-Agent": userAgent,
-    },
-    body: JSON.stringify({ messages: messageIds.slice(0, 100) }), // API limit is 100
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    console.warn(`Discord bulk delete failed (status ${response.status}), possibly because messages were already gone: ${text}`);
-  }
-}
-
 async function handleEmbedRequest(request: NextRequest) {
   try {
-    const secretStatus = validateSecret(request);
+    const secretStatus = validateBotSecret(request);
     if (!secretStatus.valid) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized", reason: secretStatus.reason }, { status: 401 });
     }
 
     let rawPayload: unknown;
