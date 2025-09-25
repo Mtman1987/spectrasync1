@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useTransition, Suspense } from "react"
+import React, { useState, useTransition, Suspense } from "react"
 import { Calendar } from "@/components/ui/calendar"
 import {
   Card,
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card"
 import { Users, Crown, Rocket, Loader2, Shield, Megaphone, UserPlus, AlertCircle } from "lucide-react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { getCalendarEvents, type CalendarEvent, getAnnouncementSignups, signUpForAnnouncement, type AnnouncementSignup } from "@/app/calendar/actions"
+import { type CalendarEvent, type AnnouncementSignup, signUpForAnnouncement } from "@/app/calendar/actions"
 import { AddEventForm } from "@/app/calendar/add-event-form"
 import { Button } from "@/components/ui/button"
 import { format, startOfDay, parse } from "date-fns"
@@ -53,8 +53,6 @@ function CalendarPageContent({
   const searchParams = useSearchParams();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [currentMonth, setCurrentMonth] = useState(parse(currentMonthString, 'yyyy-MM', new Date()));
-  const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
-  const [signups, setSignups] = useState<{ [day: string]: AnnouncementSignup }>(initialSignups);
   const [isPending, startTransition] = useTransition();
 
   const handleMonthChange = (month: Date) => {
@@ -80,7 +78,7 @@ function CalendarPageContent({
 
         if (result.success) {
             toast({ title: "Spot Claimed!", description: `You signed up for announcements on ${format(selectedDate, 'MMMM do')}. ${result.message}` });
-            router.refresh(); // Refresh server components
+            router.refresh();
         } else {
             toast({ title: "Error", description: result.error, variant: "destructive" });
         }
@@ -95,13 +93,13 @@ function CalendarPageContent({
     }
   }
   
-  const userSignupsThisMonth = adminDiscordId ? Object.values(signups).filter(s => s.userId === adminDiscordId).length : 0;
-  const isDateTaken = selectedDate && signups[format(selectedDate, 'dd')];
+  const userSignupsThisMonth = adminDiscordId ? Object.values(initialSignups).filter(s => s.userId === adminDiscordId).length : 0;
+  const isDateTaken = selectedDate && initialSignups[format(selectedDate, 'dd')];
   const canSignUp = adminDiscordId && userSignupsThisMonth < 5 && !isDateTaken;
   
   const CustomDay = (props: DayContentProps) => {
     const dayKey = format(props.date, 'dd');
-    const signup = signups[dayKey];
+    const signup = initialSignups[dayKey];
     if (signup) {
       return (
         <div className="relative w-full h-full flex items-center justify-center">
@@ -168,7 +166,7 @@ function CalendarPageContent({
                     onSelect={setSelectedDate}
                     month={currentMonth}
                     onMonthChange={handleMonthChange}
-                    disabled={(date) => date < startOfDay(new Date()) || !!signups[format(date, 'dd')] || !guildId}
+                    disabled={(date) => date < startOfDay(new Date()) || !!initialSignups[format(date, 'dd')] || !guildId}
                     footer={
                       <div className="mt-4 flex flex-col gap-4 p-4 pt-0">
                           <div className="flex flex-col sm:flex-row justify-center gap-2">
@@ -191,10 +189,10 @@ function CalendarPageContent({
             <CardTitle className="font-headline">Upcoming Events</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {events.length === 0 && (
+            {initialEvents.length === 0 && (
               <p className="text-muted-foreground text-center">No upcoming events.</p>
             )}
-            {events.map((event) => {
+            {initialEvents.map((event) => {
               const Icon = eventIcons[event.type as keyof typeof eventIcons] || Users;
               return (
                   <div key={event.id} className="flex items-start gap-4">
@@ -231,7 +229,8 @@ function CalendarPageContent({
 }
 
 async function CalendarPageWrapper({ searchParams }: { searchParams: { month?: string } }) {
-  const { getSession, getAdminInfo, getCalendarEvents, getAnnouncementSignups } = await import('@/app/actions');
+  const { getSession, getAdminInfo } = await import('@/app/actions');
+  const { getCalendarEvents, getAnnouncementSignups } = await import('@/app/calendar/actions');
   const { redirect } = await import('next/navigation');
   const { format, parse } = await import('date-fns');
 
