@@ -2,10 +2,18 @@
 // src/app/api/auth/discord/callback/route.ts
 import { type NextRequest, NextResponse } from "next/server";
 import { saveAdminInfo } from "@/app/actions";
+import { getRuntimeValue } from "@/lib/runtime-config";
 
-const DEFAULT_BASE_URL = "https://cosmicbackend--cosmic-raid-app.us-central1.hosted.app";
+const DEFAULT_BASE_URL = "https://spacemtn--cosmic-raid-app.us-central1.hosted.app";
 
-function resolveBaseUrl(request: NextRequest) {
+async function resolveBaseUrl(request: NextRequest) {
+    try {
+        const runtime = await getRuntimeValue<string>("NEXT_PUBLIC_BASE_URL");
+        if (runtime) return runtime;
+    } catch (e) {
+        console.error("Error fetching runtime base URL:", e);
+    }
+
     if (process.env.NEXT_PUBLIC_BASE_URL) {
         return process.env.NEXT_PUBLIC_BASE_URL;
     }
@@ -21,7 +29,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
 
-    const baseUrl = resolveBaseUrl(request);
+    const baseUrl = await resolveBaseUrl(request);
 
     if (!code) {
         return NextResponse.redirect(new URL('/?error=Missing authorization code', baseUrl));
@@ -88,14 +96,14 @@ export async function GET(request: NextRequest) {
         await saveAdminInfo(adminDiscordId, adminData);
         
         // Redirect to the root page with the admin ID to be stored in localStorage
-        const redirectUrl = new URL('/', baseUrl);
+    const redirectUrl = new URL('/', baseUrl);
         redirectUrl.searchParams.set('adminId', adminDiscordId);
         return NextResponse.redirect(redirectUrl);
 
     } catch (e) {
         console.error("Discord callback error:", e);
         const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
-        const errorRedirectUrl = new URL('/', baseUrl);
+    const errorRedirectUrl = new URL('/', baseUrl);
         errorRedirectUrl.searchParams.set('error', errorMessage);
         return NextResponse.redirect(errorRedirectUrl);
     }

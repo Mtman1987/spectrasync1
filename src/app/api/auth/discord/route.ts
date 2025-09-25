@@ -1,10 +1,20 @@
 // src/app/api/auth/discord/route.ts
 import { type NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
+import { getRuntimeValue } from "@/lib/runtime-config";
 
-const DEFAULT_BASE_URL = "https://cosmicbackend--cosmic-raid-app.us-central1.hosted.app";
+const DEFAULT_BASE_URL = "https://spacemtn--cosmic-raid-app.us-central1.hosted.app";
 
-function resolveBaseUrl(request: NextRequest) {
+async function resolveBaseUrl(request: NextRequest) {
+    // Prefer runtime config stored in Firestore (set by admin API)
+    try {
+        const runtime = await getRuntimeValue<string>("NEXT_PUBLIC_BASE_URL");
+        if (runtime) return runtime;
+    } catch (e) {
+        // ignore runtime errors and fall back
+        console.error("Error reading runtime config for base URL:", e);
+    }
+
     if (process.env.NEXT_PUBLIC_BASE_URL) {
         return process.env.NEXT_PUBLIC_BASE_URL;
     }
@@ -16,11 +26,11 @@ function resolveBaseUrl(request: NextRequest) {
     return DEFAULT_BASE_URL;
 }
 
-export function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
     // Generate a random state for CSRF protection
     const state = randomBytes(16).toString('hex');
 
-    const baseUrl = resolveBaseUrl(request);
+    const baseUrl = await resolveBaseUrl(request);
     const redirectUri =
         process.env.DISCORD_REDIRECT_URI ||
         new URL('/api/auth/discord/callback', baseUrl).toString();

@@ -2,10 +2,18 @@
 // src/app/api/join-callback/route.ts
 import { type NextRequest, NextResponse } from "next/server";
 import { saveUserInfoByDiscordId } from "@/app/actions";
+import { getRuntimeValue } from "@/lib/runtime-config";
 
-const DEFAULT_BASE_URL = "https://cosmicbackend--cosmic-raid-app.us-central1.hosted.app";
+const DEFAULT_BASE_URL = "https://spacemtn--cosmic-raid-app.us-central1.hosted.app";
 
-function resolveBaseUrl(request: NextRequest) {
+async function resolveBaseUrl(request: NextRequest) {
+    try {
+        const runtime = await getRuntimeValue<string>("NEXT_PUBLIC_BASE_URL");
+        if (runtime) return runtime;
+    } catch (e) {
+        console.error("Error reading runtime config for base URL:", e);
+    }
+
     if (process.env.NEXT_PUBLIC_BASE_URL) {
         return process.env.NEXT_PUBLIC_BASE_URL;
     }
@@ -22,7 +30,7 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code');
     const action = searchParams.get('action');
 
-    const baseUrl = resolveBaseUrl(request);
+    const baseUrl = await resolveBaseUrl(request);
 
     if (!code) {
         return NextResponse.redirect(new URL('/join?error=Missing authorization code', baseUrl));
@@ -32,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const redirectUri = new URL('/api/join-callback', baseUrl).toString();
+    const redirectUri = new URL('/api/join-callback', baseUrl).toString();
 
         const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
             method: 'POST',

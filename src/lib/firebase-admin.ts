@@ -98,10 +98,38 @@ function resolveServiceAccount(): ServiceAccountConfig | null {
 
   const explicitPath = process.env.FIREBASE_ADMIN_SDK_PATH ?? process.env.GOOGLE_APPLICATION_CREDENTIALS ?? null;
   if (explicitPath) {
-    const parsedExplicit = readServiceAccountFromFile(explicitPath);
+    // First try the path as provided (may be absolute or relative to CWD)
+    let parsedExplicit = readServiceAccountFromFile(explicitPath);
     if (parsedExplicit) {
       return parsedExplicit;
     }
+
+    // If not found, attempt resolving relative to the process CWD (useful when a relative
+    // path is provided in env like "firebase-service-account.json")
+    try {
+      const resolvedCwd = path.resolve(process.cwd(), explicitPath);
+      if (resolvedCwd !== explicitPath) {
+        parsedExplicit = readServiceAccountFromFile(resolvedCwd);
+        if (parsedExplicit) {
+          return parsedExplicit;
+        }
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    // Also try resolving relative to the repo root based on this file's directory.
+    try {
+      const resolvedRepo = path.resolve(__dirname, '..', '..', explicitPath);
+      parsedExplicit = readServiceAccountFromFile(resolvedRepo);
+      if (parsedExplicit) {
+        return parsedExplicit;
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    console.warn(`Service account file not found at provided path: ${explicitPath}. Tried CWD and repo-relative locations.`);
   }
 
   const localPath = path.resolve(process.cwd(), "firebase-service-account.json");
