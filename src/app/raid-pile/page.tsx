@@ -1,27 +1,35 @@
-import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
 import { getAdminInfo, getLiveRaidPiles, getLeaderboard } from '@/app/actions';
-import { RaidPileClientPage } from "@/app/raid-pile/raid-pile-client-page";
-import { AppLayout } from "@/components/layout/app-layout";
+import { RaidPileClientPage } from '@/app/raid-pile/raid-pile-client-page';
+import { AppLayout } from '@/components/layout/app-layout';
 
-async function RaidPilePageContent() {
+type PageProps = {
+  searchParams: Record<string, string | string[] | undefined> | undefined;
+};
+
+export default async function RaidPilePage({ searchParams }: PageProps) {
   const session = await getSession();
   if (!session.isLoggedIn || !session.adminId) {
     redirect('/');
   }
 
   const { value: adminData } = await getAdminInfo(session.adminId);
-  const guildId = adminData?.selectedGuild;
+  const guildId = adminData?.selectedGuild ?? null;
+  const isEmbedded = searchParams ? Object.prototype.hasOwnProperty.call(searchParams, 'frame_id') : false;
 
   if (!guildId) {
-    return (
-      <AppLayout>
-        <div className="text-center py-8 text-muted-foreground">
-          Please select a community in your settings to view the raid pile.
-        </div>
-      </AppLayout>
+    const content = (
+      <div className="text-center py-8 text-muted-foreground">
+        Please select a community in your settings to view the raid pile.
+      </div>
     );
+
+    if (isEmbedded) {
+      return <div className="p-4 bg-background">{content}</div>;
+    }
+
+    return <AppLayout>{content}</AppLayout>;
   }
 
   const [initialRaidPiles, leaderboardData] = await Promise.all([
@@ -29,25 +37,17 @@ async function RaidPilePageContent() {
     getLeaderboard(guildId),
   ]);
 
-  return (
-    <AppLayout>
-      <RaidPileClientPage
-        guildId={guildId}
-        initialRaidPiles={initialRaidPiles}
-        leaderboardData={leaderboardData}
-      />
-    </AppLayout>
+  const pageContent = (
+    <RaidPileClientPage
+      guildId={guildId}
+      initialRaidPiles={initialRaidPiles}
+      leaderboardData={leaderboardData}
+    />
   );
-}
 
-function RaidPilePageWrapper() {
-  return (
-    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Loading Raid Pile...</div>}>
-      <RaidPilePageContent />
-    </Suspense>
-  );
-}
+  if (isEmbedded) {
+    return <div className="p-4 bg-background">{pageContent}</div>;
+  }
 
-export default RaidPilePageWrapper;
-    
-    
+  return <AppLayout>{pageContent}</AppLayout>;
+}

@@ -13,8 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Swords, Crown, Eye, Link2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
-import type { RaidPile, LiveUser } from "./types";
+import type { RaidPile } from "./types";
 import { LeaderboardCard } from "@/components/leaderboard-card";
+import { Twitch } from "@/components/icons";
 import type { LeaderboardUser } from "@/app/leaderboard/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -72,7 +73,7 @@ export function RaidPileClientPage({
   guildId,
 }: RaidPileClientPageProps) {
   const [raidPiles, setRaidPiles] = useState<RaidPile[]>(initialRaidPiles);
-  const [isLoading, setIsLoading] = useState(false); // Data is pre-fetched by the server component
+  const [isLoading] = useState(false); // Data is pre-fetched by the server component
   const [parentDomain, setParentDomain] = useState("");
   
   useEffect(() => {
@@ -175,7 +176,7 @@ export function RaidPileClientPage({
 
        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <QuickLinkCard guildId={guildId} />
-             <LeaderboardCard leaderboardData={leaderboardData} />
+             <LeaderboardCard leaderboardData={leaderboardData} isLoading={isLoading} />
         </div>
 
 

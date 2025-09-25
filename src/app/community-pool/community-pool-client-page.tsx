@@ -1,4 +1,3 @@
-it sa
 "use client";
 
 import { useState, useEffect } from "react";
@@ -124,8 +123,9 @@ export function CommunityPoolClientPage({
                                         <Image
                                           src={`https://static-cdn.jtvnw.net/previews-ttv/live_user_${streamer.twitchLogin}-440x248.jpg`}
                                           alt={`Thumbnail for ${streamer.displayName}`}
-                                          layout="fill"
-                                          objectFit="cover"
+                                          fill
+                                          sizes="(min-width: 1280px) 20vw, (min-width: 768px) 25vw, 100vw"
+                                          className="object-cover"
                                           data-ai-hint="stream thumbnail"
                                         />
                                         {isSpotlight && (

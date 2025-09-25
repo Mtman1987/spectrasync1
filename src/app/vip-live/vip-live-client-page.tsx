@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Crown, Eye, Bell, UserPlus, Trash2, UserRoundPlus, Edit } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { LiveUser } from "../raid-pile/types";
 import { sendVipLiveNotification } from "./actions";
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +43,7 @@ interface VipLiveClientPageProps {
   isLoading: boolean;
   parentDomain: string;
   guildId: string;
-  onVipChanged: () => void;
+  onVipChanged?: () => void;
 }
 
 function AddVipForm({ guildId, onVipAdded }: { guildId: string, onVipAdded: () => void }) {
@@ -153,7 +154,8 @@ function CreateVipForm({ guildId, onVipAdded }: { guildId: string, onVipAdded: (
                         <Input id="twitch-username" value={twitchUsername} onChange={(e) => setTwitchUsername(e.target.value)} className="col-span-3" />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="vip-message" className="text-right">VIP Message</Label>
+                        <Label htmlFor="vip-message" className="text-right">VIP Message
+</Label>
                         <Input id="vip-message" value={message} onChange={(e) => setMessage(e.target.value)} className="col-span-3" />
                     </div>
                 </div>
@@ -229,6 +231,25 @@ export function VipLiveClientPage({
 }: VipLiveClientPageProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const router = useRouter();
+  const [embedParentDomain, setEmbedParentDomain] = useState(parentDomain);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setEmbedParentDomain(parentDomain || window.location.hostname);
+    } else {
+      setEmbedParentDomain(parentDomain);
+    }
+  }, [parentDomain]);
+
+  const handleVipListChanged = () => {
+    if (onVipChanged) {
+      onVipChanged();
+    } else {
+      router.refresh();
+    }
+  };
+
   
   const liveVipIds = new Set(liveVips.map(v => v.twitchId));
 
@@ -258,7 +279,7 @@ export function VipLiveClientPage({
           const result = await removeVip(guildId, discordId);
           if (result.success) {
               toast({ title: "VIP Removed", description: result.message });
-              onVipChanged(); // This will refresh the vip list
+              handleVipListChanged();
           } else {
               toast({ title: "Error", description: result.error, variant: "destructive" });
           }
@@ -292,9 +313,9 @@ export function VipLiveClientPage({
             <Card key={vip.twitchId} className="bg-gradient-to-tr from-yellow-400/10 to-card border-yellow-400/20 overflow-hidden">
                 <div className="grid md:grid-cols-3">
                      <div className="md:col-span-2 aspect-video bg-muted">
-                        {parentDomain && (
+                        {embedParentDomain && (
                             <iframe
-                                src={`https://player.twitch.tv/?channel=${vip.twitchLogin.toLowerCase()}&parent=${parentDomain}&autoplay=true&muted=true`}
+                                src={`https://player.twitch.tv/?channel=${vip.twitchLogin.toLowerCase()}&parent=${embedParentDomain}&autoplay=true&muted=true`}
                                 height="100%"
                                 width="100%"
                                 allowFullScreen={true}
@@ -374,7 +395,7 @@ export function VipLiveClientPage({
                                         </Badge>
                                     </div>
                                     <div className="flex items-center gap-2 mt-4">
-                                        <EditVipForm guildId={guildId} vip={vip} onVipUpdated={onVipChanged} />
+                                        <EditVipForm guildId={guildId} vip={vip} onVipUpdated={handleVipListChanged} />
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                                 <Button variant="destructive" size="sm" className="w-full" disabled={isPending}>
@@ -410,8 +431,8 @@ export function VipLiveClientPage({
                 )}
             </CardContent>
             <CardFooter className="gap-2">
-                 <AddVipForm guildId={guildId} onVipAdded={onVipChanged} />
-                 <CreateVipForm guildId={guildId} onVipAdded={onVipChanged} />
+                 <AddVipForm guildId={guildId} onVipAdded={handleVipListChanged} />
+                 <CreateVipForm guildId={guildId} onVipAdded={handleVipListChanged} />
             </CardFooter>
         </Card>
     </div>

@@ -37,21 +37,27 @@ $pairs = @{}
 Get-Content $EnvPath | ForEach-Object {
     $line = $_.Trim()
     if ($line -eq "" -or $line.StartsWith("#")) { return }
+
     if ($line -match "^([^=]+)=(.*)$") {
-        $k = $matches[1].Trim()
-        $v = $matches[2].Trim()
-        # Remove surrounding single or double quotes if present
-        if ($v.Length -ge 2) {
-            $first = $v.Substring(0,1)
-            $last = $v.Substring($v.Length - 1, 1)
+        $key = $matches[1].Trim()
+        $value = $matches[2].Trim()
+
+        if ($value.Length -ge 2) {
+            $first = $value.Substring(0, 1)
+            $last = $value.Substring($value.Length - 1, 1)
             if ((($first -eq '"') -and ($last -eq '"')) -or (($first -eq "'") -and ($last -eq "'"))) {
-                $v = $v.Substring(1, $v.Length - 2)
+                $value = $value.Substring(1, $value.Length - 2)
             }
         }
-    # Coerce booleans only; keep numeric IDs as strings to avoid overflow issues
-    if ($v -match '^(true|false)$') { $val = $v -eq 'true' }
-    else { $val = $v }
-        $pairs[$k] = $val
+
+        # Coerce booleans only; keep numeric IDs as strings to avoid overflow issues
+        $coerced = if ($value -match '^(true|false)$') {
+            $value -eq 'true'
+        } else {
+            $value
+        }
+
+        $pairs[$key] = $coerced
     }
 }
 

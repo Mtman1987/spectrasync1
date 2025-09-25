@@ -62,6 +62,21 @@ type DispatchSummary =
   | { status: "sent"; count: number; messageIds: string[] }
   | { status: "error"; error: string };
 
+
+type VipLiveConfigDocument = {
+  guildId: string;
+  channelId: string | null;
+  headerTitle: string | null;
+  headerMessage: string | null;
+  maxEmbedsPerMessage: number | null;
+  refreshHintSeconds: number;
+  lastUpdatedAt: string;
+  dispatchEnabled: boolean;
+  updatedAt: string;
+  lastDispatchStatus: DispatchSummary["status"];
+  lastDispatchMessageIds: string[];
+  lastSpotlightedId?: string | null;
+};
 const VIP_REFRESH_SECONDS = 7 * 60;
 const DISCORD_MAX_EMBEDS = 10;
 const MAX_VIP_CARDS = 100;
@@ -737,7 +752,7 @@ async function persistVipLiveConfig(
     const response = (responsePayload ?? {}) as VipEmbedResponse;
     const headerFromResponse = response.header ?? {};
 
-    const data = {
+    const data: VipLiveConfigDocument = {
       guildId: payload.guildId,
       channelId: normalizedChannelId || null,
       headerTitle: payload.headerTitle ?? headerFromResponse.title ?? null,
@@ -752,9 +767,11 @@ async function persistVipLiveConfig(
         dispatchSummary.status === "sent" ? dispatchSummary.messageIds ?? [] : [],
     };
 
-    if (payload.type === 'community-pool' && (responsePayload as any)?.nextSpotlightId) {
-      // Persist the next user to be spotlighted for rotation
-      data.lastSpotlightedId = (responsePayload as any).nextSpotlightId;
+    if (payload.type === "community-pool") {
+      const nextSpotlightId = (responsePayload as { nextSpotlightId?: string | null } | null)?.nextSpotlightId;
+      if (typeof nextSpotlightId === "string" && nextSpotlightId.trim().length > 0) {
+        data.lastSpotlightedId = nextSpotlightId.trim();
+      }
     }
 
     await settingsRef.set(data, { merge: true });
@@ -763,7 +780,9 @@ async function persistVipLiveConfig(
   }
 }
 
-async function getVipLiveConfig(guildId: string): Promise<{ lastDispatchMessageIds?: string[] } | null> {
+async function getVipLiveConfig(
+  guildId: string,
+): Promise<Pick<VipLiveConfigDocument, "lastDispatchMessageIds" | "lastSpotlightedId"> | null> {
   if (!guildId) {
     return null;
   }
@@ -778,7 +797,11 @@ async function getVipLiveConfig(guildId: string): Promise<{ lastDispatchMessageI
     if (!doc.exists) {
       return null;
     }
-    return doc.data() as { lastDispatchMessageIds?: string[] };
+    const data = doc.data() as Partial<VipLiveConfigDocument>;
+    return {
+      lastDispatchMessageIds: data.lastDispatchMessageIds ?? [],
+      lastSpotlightedId: data.lastSpotlightedId ?? null,
+    };
   } catch (error) {
     console.error("Failed to retrieve VIP live embed configuration", error);
     return null;

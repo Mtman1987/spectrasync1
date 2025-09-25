@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useTransition, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useTransition, useMemo, useCallback } from "react";
 import { format, isSameDay, getHours } from "date-fns"
 import {
   Card,
@@ -8,16 +8,16 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Train, Crown, CalendarDays, Loader2, Link2 } from 'lucide-react';
-import { AppLayout } from '@/components/layout/app-layout';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { useToast } from '@/hooks/use-toast';
-import { useSearchParams } from 'next/navigation';
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Train, Crown, CalendarDays, Loader2, Link2 } from "lucide-react";
+import { AppLayout } from "@/components/layout/app-layout";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
+import { useSearchParams } from "next/navigation";
 import { getRaidTrainSchedule, getLiveRaidTrainUsers } from "@/app/raid-train/actions";
 import { getLeaderboard } from "@/app/leaderboard/actions";
-import { LeaderboardCard } from '@/components/leaderboard-card';
+import { LeaderboardCard } from "@/components/leaderboard-card";
 import type { LeaderboardUser } from "@/app/leaderboard/actions"
 import type { Signup, EmergencySignup } from "@/app/raid-train/actions"
 import type { LiveUser } from "@/app/raid-pile/types"
@@ -25,7 +25,7 @@ import Link from 'next/link';
 import { Twitch } from '@/components/icons';
 import { RaidTrainSettingsForm } from './raid-train-settings-form';
 import { AttendanceCard } from '../dashboard/attendance-card';
-import { Input } from '@/components/ui/input';
+import { Input } from "@/components/ui/input";
 import { getSettings } from '@/app/settings/actions';
 
 function QuickLinkCard({ guildId }: { guildId: string | null }) {
@@ -68,7 +68,6 @@ function QuickLinkCard({ guildId }: { guildId: string | null }) {
 export default function RaidTrainClient({ guildId }: { guildId: string | null }) {
     const searchParams = useSearchParams();
     const { toast } = useToast();
-
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [signups, setSignups] = useState<{ [key: string]: Signup | EmergencySignup }>({});
     const [leaderboardData, setLeaderboardData] = useState<LeaderboardUser[]>([]);
@@ -197,7 +196,7 @@ export default function RaidTrainClient({ guildId }: { guildId: string | null })
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                  <RaidTrainSettingsForm guildId={guildId} onSettingsSaved={fetchRaidTrainData} />
                  <LeaderboardCard leaderboardData={leaderboardData} isLoading={isLoading} />
-                 <AttendanceCard />
+                 <AttendanceCard guildId={guildId} />
                  <QuickLinkCard guildId={guildId} />
             </div>
         </div>

@@ -217,6 +217,50 @@ export async function getTwitchClips(broadcasterId: string, limit = 5): Promise<
   }
 }
 
+
+function deriveClipMp4Url(thumbnailUrl: string | undefined): string | null {
+  if (!thumbnailUrl) return null;
+  const base = thumbnailUrl.split('?')[0];
+  if (!base) return null;
+  const replaced = base.replace(/-preview-\d+x\d+\.jpg$/i, '.mp4');
+  return replaced === base ? null : replaced;
+}
+
+export async function getClipById(clipId: string): Promise<any | null> {
+  if (!clipId) {
+    return null;
+  }
+  const clientId = await getRuntimeValue<string>('TWITCH_CLIENT_ID', process.env.TWITCH_CLIENT_ID);
+  if (!clientId) {
+    console.error('Twitch Client ID is not set.');
+    return null;
+  }
+  try {
+    const accessToken = await getTwitchAppAccessToken();
+    const url = `https://api.twitch.tv/helix/clips?id=${encodeURIComponent(clipId)}`;
+    const response = await fetch(url, {
+      headers: {
+        'Client-ID': clientId,
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    if (!response.ok) {
+      console.error(`Twitch API error (getClipById): ${response.status} ${await response.text()}`);
+      return null;
+    }
+    const data = await response.json();
+    const clip = Array.isArray(data.data) && data.data.length > 0 ? data.data[0] : null;
+    if (!clip) {
+      return null;
+    }
+    const videoUrl = deriveClipMp4Url(clip.thumbnail_url) ?? null;
+    return { ...clip, video_url: videoUrl };
+  } catch (error) {
+    console.error('Error fetching Twitch clip by id:', error);
+    return null;
+  }
+}
+
 export async function getTwitchUsersByLogins(logins: string[]): Promise<BasicTwitchUser[]> {
   if (logins.length === 0) {
     return [];

@@ -8,7 +8,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import type { DocumentReference, Timestamp } from 'firebase-admin/firestore';
 import type { LiveUser } from './raid-pile/types';
 import { getSettings } from './settings/actions';
-import { getTwitchUserByUsername, getTwitchStreams, getTwitchClips, getTwitchStreamsByLogins } from '@/lib/twitch';
+import { getTwitchUserByUsername, getTwitchStreams, getTwitchClips, getTwitchStreamsByLogins, getClipById } from '@/lib/twitch';
 
 
 
@@ -214,7 +214,7 @@ export async function getSelectedGuildId(adminDiscordId: string): Promise<string
 // --- TWITCH-RELATED ACTIONS ---
 // Note: The core Twitch API functions have been moved to src/bot/twitch-actions.ts
 // to ensure they can be used by both the bot and the web app without bundling issues.
-export { getTwitchUserByUsername, getTwitchStreams, getTwitchClips, getTwitchStreamsByLogins };
+export { getTwitchUserByUsername, getTwitchStreams, getTwitchClips, getTwitchStreamsByLogins, getClipById };
 
 
 /**
