@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
                 grant_type: 'authorization_code',
                 code,
                 redirect_uri: redirectUri,
-            }),
+            }).toString(),
         });
 
         const tokenData = await tokenResponse.json();
