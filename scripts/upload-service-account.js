@@ -4,6 +4,7 @@
 // Reads a service account JSON, base64-encodes it, and writes it to Firestore
 // under app_settings/runtime as FIREBASE_ADMIN_SDK_JSON_BASE64 (merge).
 
+require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const admin = require('firebase-admin');

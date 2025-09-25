@@ -2,6 +2,7 @@
  * Twitch API helpers used by server actions. These functions run on the server
  * and reuse cached app access tokens to minimize auth round-trips.
  */
+import { getRuntimeValue } from "./runtime-config";
 
 let appAccessToken: { token: string; expires_at: number } | null = null;
 
@@ -28,11 +29,14 @@ async function getTwitchAppAccessToken() {
     return appAccessToken.token;
   }
 
-  if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_CLIENT_SECRET) {
+  const clientId = await getRuntimeValue<string>("TWITCH_CLIENT_ID", process.env.TWITCH_CLIENT_ID);
+  const clientSecret = await getRuntimeValue<string>("TWITCH_CLIENT_SECRET", process.env.TWITCH_CLIENT_SECRET);
+
+  if (!clientId || !clientSecret) {
     throw new Error('Twitch client ID or secret is not configured in environment variables.');
   }
 
-  const url = `https://id.twitch.tv/oauth2/token?client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`;
+  const url = `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`;
   const response = await fetch(url, { method: 'POST' });
   const data = await response.json();
 
@@ -49,7 +53,8 @@ async function getTwitchAppAccessToken() {
 }
 
 export async function getTwitchUserByUsername(username: string): Promise<BasicTwitchUser | null> {
-  if (!process.env.TWITCH_CLIENT_ID) {
+  const clientId = await getRuntimeValue<string>("TWITCH_CLIENT_ID", process.env.TWITCH_CLIENT_ID);
+  if (!clientId) {
     console.error('Twitch Client ID is not set.');
     return null;
   }
@@ -59,7 +64,7 @@ export async function getTwitchUserByUsername(username: string): Promise<BasicTw
 
     const response = await fetch(url, {
       headers: {
-        'Client-ID': process.env.TWITCH_CLIENT_ID,
+        'Client-ID': clientId,
         Authorization: `Bearer ${accessToken}`,
       },
     });
@@ -78,7 +83,8 @@ export async function getTwitchUserByUsername(username: string): Promise<BasicTw
 }
 
 export async function getTwitchUserById(userId: string): Promise<BasicTwitchUser | null> {
-  if (!process.env.TWITCH_CLIENT_ID) {
+  const clientId = await getRuntimeValue<string>("TWITCH_CLIENT_ID", process.env.TWITCH_CLIENT_ID);
+  if (!clientId) {
     console.error('Twitch Client ID is not set.');
     return null;
   }
@@ -88,7 +94,7 @@ export async function getTwitchUserById(userId: string): Promise<BasicTwitchUser
     const url = `https://api.twitch.tv/helix/users?id=${userId}`;
     const response = await fetch(url, {
       headers: {
-        'Client-ID': process.env.TWITCH_CLIENT_ID,
+        'Client-ID': clientId,
         Authorization: `Bearer ${accessToken}`,
       },
     });
@@ -110,7 +116,8 @@ export async function getTwitchUserById(userId: string): Promise<BasicTwitchUser
 export async function getTwitchStreams(userIds: string[]): Promise<any[]> {
   if (userIds.length === 0) return [];
 
-  if (!process.env.TWITCH_CLIENT_ID) {
+  const clientId = await getRuntimeValue<string>("TWITCH_CLIENT_ID", process.env.TWITCH_CLIENT_ID);
+  if (!clientId) {
     console.error('Twitch Client ID is not set.');
     return [];
   }
@@ -123,7 +130,7 @@ export async function getTwitchStreams(userIds: string[]): Promise<any[]> {
 
     const response = await fetch(url, {
       headers: {
-        'Client-ID': process.env.TWITCH_CLIENT_ID,
+        'Client-ID': clientId,
         Authorization: `Bearer ${accessToken}`,
       },
     });
@@ -144,7 +151,8 @@ export async function getTwitchStreams(userIds: string[]): Promise<any[]> {
 export async function getTwitchStreamsByLogins(userLogins: string[]): Promise<any[]> {
   if (userLogins.length === 0) return [];
 
-  if (!process.env.TWITCH_CLIENT_ID) {
+  const clientId = await getRuntimeValue<string>("TWITCH_CLIENT_ID", process.env.TWITCH_CLIENT_ID);
+  if (!clientId) {
     console.error('Twitch Client ID is not set.');
     return [];
   }
@@ -158,7 +166,7 @@ export async function getTwitchStreamsByLogins(userLogins: string[]): Promise<an
 
     const response = await fetch(url, {
       headers: {
-        'Client-ID': process.env.TWITCH_CLIENT_ID,
+        'Client-ID': clientId,
         Authorization: `Bearer ${accessToken}`,
       },
     });
@@ -178,7 +186,8 @@ export async function getTwitchStreamsByLogins(userLogins: string[]): Promise<an
 
 
 export async function getTwitchClips(broadcasterId: string, limit = 5): Promise<any[]> {
-  if (!process.env.TWITCH_CLIENT_ID) {
+  const clientId = await getRuntimeValue<string>("TWITCH_CLIENT_ID", process.env.TWITCH_CLIENT_ID);
+  if (!clientId) {
     console.error('Twitch Client ID is not set.');
     return [];
   }
@@ -190,7 +199,7 @@ export async function getTwitchClips(broadcasterId: string, limit = 5): Promise<
 
     const response = await fetch(url, {
       headers: {
-        'Client-ID': process.env.TWITCH_CLIENT_ID,
+        'Client-ID': clientId,
         Authorization: `Bearer ${accessToken}`,
       },
     });
@@ -213,7 +222,8 @@ export async function getTwitchUsersByLogins(logins: string[]): Promise<BasicTwi
     return [];
   }
 
-  if (!process.env.TWITCH_CLIENT_ID) {
+  const clientId = await getRuntimeValue<string>("TWITCH_CLIENT_ID", process.env.TWITCH_CLIENT_ID);
+  if (!clientId) {
     console.error('Twitch Client ID is not set.');
     return [];
   }
@@ -230,7 +240,7 @@ export async function getTwitchUsersByLogins(logins: string[]): Promise<BasicTwi
       const url = `https://api.twitch.tv/helix/users?${params.toString()}`;
       const response = await fetch(url, {
         headers: {
-          'Client-ID': process.env.TWITCH_CLIENT_ID,
+          'Client-ID': clientId,
           Authorization: `Bearer ${accessToken}`,
         },
       });
