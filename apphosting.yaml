@@ -1,10 +1,17 @@
 runConfig:
   runtime: nodejs20
   cpu: 1
-  memoryMiB: 512
+  memoryMiB: 1024
   minInstances: 0
   maxInstances: 10
   concurrency: 100
+
+build:
+  env:
+    - variable: SKIP_ENV_VALIDATION
+      value: "1"
+    - variable: NODE_ENV
+      value: production
 
 env:
   - variable: NODE_ENV

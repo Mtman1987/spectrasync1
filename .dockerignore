@@ -1,24 +1,7 @@
-# dependencies
 node_modules
 .next
-
-# build outputs
-out
-dist
-
-# local env
-.env
-.env.*
-
-# git
 .git
-.gitignore
-
-# editor
-.vscode
-.idea
+.env*
+*.log
 .DS_Store
-
-# firebase hosting artifacts
-firebase
-
+Thumbs.db

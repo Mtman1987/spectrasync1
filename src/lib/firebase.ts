@@ -5,7 +5,7 @@ import { getFirestore } from 'firebase/firestore';
 
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCtfKnp_2QgEi8KJZm_4zG2KsOvtD2nAuI",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyCtfKnp_2QgEi8KJZm_4zG2KsOvtD2nAuI",
   authDomain: "cosmic-raid-app.firebaseapp.com",
   projectId: "cosmic-raid-app",
   storageBucket: "cosmic-raid-app.firebasestorage.app",

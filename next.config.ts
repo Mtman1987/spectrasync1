@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  env: {
+    SKIP_ENV_VALIDATION: process.env.SKIP_ENV_VALIDATION,
+  },
   images: {
     remotePatterns: [
       {

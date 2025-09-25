@@ -61,7 +61,7 @@ export async function getRaidTrainSchedule(guildId: string, dateKey: string): Pr
         if (!data) return {};
 
         const serializableData: { [key: string]: Signup | EmergencySignup } = {};
-        for (const key in data) {
+        for (const key of Object.keys(data)) {
             const signup = data[key];
             serializableData[key] = {
                 ...signup,
@@ -254,7 +254,7 @@ export async function getRaidTrainEmergencies(guildId: string): Promise<RaidTrai
             if (doc.exists) {
                 const data = doc.data();
                 if (data) {
-                    for (const time in data) {
+                    for (const time of Object.keys(data)) {
                         if (data[time].id === 'emergency') {
                             emergencies.push({
                                 date: format(dateToCheck, 'MMM d'),
@@ -382,7 +382,7 @@ export async function findUserRaidTrainSlot(guildId: string, dateKey: string, us
     
     try {
         const schedule = await getRaidTrainSchedule(guildId, dateKey);
-        for (const time in schedule) {
+        for (const time of Object.keys(schedule)) {
             if (schedule[time].id === userId) {
                 return time;
             }

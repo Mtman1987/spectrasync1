@@ -11,6 +11,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { getSessionOptions, type SessionData } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
+import { sanitizeForLog } from '@/lib/sanitize';
 
 const DISCORD_API_BASE = 'https://discord.com/api/v10';
 
@@ -43,7 +44,7 @@ export async function getDiscordUser(discordId: string): Promise<{ id: string; u
     });
 
     if (!response.ok) {
-      console.error(`[getDiscordUser] Discord API error ${response.status}: ${await response.text()}`);
+      console.error(`[getDiscordUser] Discord API error ${response.status}: ${sanitizeForLog(await response.text())}`);
       return null;
     }
 
@@ -54,7 +55,7 @@ export async function getDiscordUser(discordId: string): Promise<{ id: string; u
       avatar: payload.avatar ? `https://cdn.discordapp.com/avatars/${payload.id}/${payload.avatar}.png` : null,
     };
   } catch (error) {
-    console.error(`[getDiscordUser] Failed to fetch Discord user ${discordId}:`, error);
+    console.error(`[getDiscordUser] Failed to fetch Discord user ${sanitizeForLog(discordId)}:`, sanitizeForLog(error));
     return null;
   }
 }
@@ -76,7 +77,7 @@ export async function getGuildDetails(guildId: string): Promise<{ id: string; na
     });
 
     if (!response.ok) {
-      console.error(`[getGuildDetails] Discord API error ${response.status}: ${await response.text()}`);
+      console.error(`[getGuildDetails] Discord API error ${response.status}: ${sanitizeForLog(await response.text())}`);
       const fallbackName = guildId.length >= 4 ? `Guild ${guildId.slice(-4)}` : `Guild ${guildId}`;
       return { id: guildId, name: fallbackName, icon: null };
     }
@@ -88,7 +89,7 @@ export async function getGuildDetails(guildId: string): Promise<{ id: string; na
       icon: payload.icon ? `https://cdn.discordapp.com/icons/${payload.id}/${payload.icon}.png` : null,
     };
   } catch (error) {
-    console.error(`[getGuildDetails] Failed to fetch guild ${guildId}:`, error);
+    console.error(`[getGuildDetails] Failed to fetch guild ${sanitizeForLog(guildId)}:`, sanitizeForLog(error));
     const fallbackName = guildId.length >= 4 ? `Guild ${guildId.slice(-4)}` : `Guild ${guildId}`;
     return { id: guildId, name: fallbackName, icon: null };
   }
@@ -110,10 +111,10 @@ export async function saveUserInfoByDiscordId(guildId: string, discordId: string
     const adminDb = await getAdminDb();
     const userRef = adminDb.collection('communities').doc(guildId).collection('users').doc(discordId);
     await userRef.set(data, { merge: true });
-    console.log(`User info saved for user ${discordId} in guild ${guildId}`);
+    console.log(`User info saved for user ${sanitizeForLog(discordId)} in guild ${sanitizeForLog(guildId)}`);
     return { success: true };
   } catch (e) {
-    console.error(`Error saving user info for user ${discordId} in guild ${guildId}: `, e);
+    console.error(`Error saving user info for user ${sanitizeForLog(discordId)} in guild ${sanitizeForLog(guildId)}: `, sanitizeForLog(e));
     const errorMessage = e instanceof Error ? e.message : String(e);
     return { success: false, error: errorMessage };
   }
@@ -132,14 +133,14 @@ export async function getUserInfoByDiscordId(guildId: string, discordId: string)
         const doc = await docRef.get();
 
         if (!doc.exists) {
-            console.log(`User document does not exist at path: ${docRef.path}`);
+            console.log(`User document does not exist at path: ${sanitizeForLog(docRef.path)}`);
             return { value: null }; 
         }
         
         return { value: doc.data() || null };
 
     } catch (e) {
-        console.error(`Error getting user info for discordId ${discordId} in guild ${guildId}: `, e);
+        console.error(`Error getting user info for discordId ${sanitizeForLog(discordId)} in guild ${sanitizeForLog(guildId)}: `, sanitizeForLog(e));
         const errorMessage = e instanceof Error ? e.message : String(e);
         return { value: null, error: errorMessage };
     }
@@ -180,14 +181,14 @@ export async function getAdminInfo(discordId: string): Promise<{ value: any | nu
     const doc = await docRef.get();
 
     if (!doc.exists) {
-      console.log(`Admin document does not exist at path: ${docRef.path}`);
+      console.log(`Admin document does not exist at path: ${sanitizeForLog(docRef.path)}`);
       return { value: null };
     }
 
     return { value: doc.data() || null };
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : String(e);
-    console.error(`Error getting admin info for discordId ${discordId}:`, errorMessage);
+    console.error(`Error getting admin info for discordId ${sanitizeForLog(discordId)}:`, sanitizeForLog(errorMessage));
     return { value: null, error: errorMessage };
   }
 }
