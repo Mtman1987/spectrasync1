@@ -201,12 +201,12 @@ export async function getSelectedGuildId(adminDiscordId: string): Promise<string
     try {
         const { value, error } = await getAdminInfo(adminDiscordId);
         if (error) {
-            console.error("Error getting selected guild ID:", error);
+            console.error("Error getting selected guild ID:", sanitizeForLog(error));
             return null;
         }
         return value?.selectedGuild || null;
     } catch (error) {
-        console.error("Error in getSelectedGuildId:", error);
+        console.error("Error in getSelectedGuildId:", sanitizeForLog(error));
         return null;
     }
 }
