@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
@@ -11,7 +11,6 @@ import Link from "next/link";
 import { getRaidTrainEmergencies, getRaidTrainNoShows } from "@/app/raid-train/actions";
 import { getCalendarEvents, getTodaysAnnouncer } from "@/app/calendar/actions";
 import { format } from "date-fns";
-import { useCommunity } from "@/context/community-context";
 
 type Notification = {
     title: string;
@@ -19,10 +18,22 @@ type Notification = {
     href: string;
 }
 
-export function AppHeader() {
+// Prop types from app-layout
+interface AdminProfile {
+  discordInfo: { id: string; username: string; avatar: string | null; };
+  twitchInfo?: any;
+}
+interface AdminGuild { id: string; name: string; icon: string | null; }
+
+interface AppHeaderProps {
+    adminProfile: AdminProfile | null;
+    adminGuilds: AdminGuild[];
+    selectedGuild: string | null;
+}
+
+export function AppHeader({ adminProfile, adminGuilds, selectedGuild }: AppHeaderProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const { state } = useSidebar();
-  const { selectedGuild, adminGuilds, adminProfile } = useCommunity();
 
   const guildInfo = adminGuilds.find(g => g.id === selectedGuild);
   const discordInfo = adminProfile?.discordInfo ?? null;

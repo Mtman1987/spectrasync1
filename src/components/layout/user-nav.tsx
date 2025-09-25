@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
     Avatar,
@@ -19,26 +19,35 @@ import {
 import { useSidebar } from "../ui/sidebar";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "../ui/skeleton";
-import { useCommunity } from "@/context/community-context";
+import { logout } from "@/app/actions";
 
-export function UserNav() {
+// Define types for the props
+interface AdminProfile {
+  discordInfo: {
+    id: string;
+    username: string;
+    avatar: string | null;
+  };
+  twitchInfo?: any;
+}
+
+interface UserNavProps {
+    adminProfile: AdminProfile | null;
+}
+
+export function UserNav({ adminProfile }: UserNavProps) {
   const router = useRouter();
   const { state } = useSidebar();
-  const { adminId, adminProfile, loading: communityLoading, setAdminId, setSelectedGuild, refreshAdminProfile } = useCommunity();
-
-  useEffect(() => {
-    if (!communityLoading && adminId && !adminProfile) {
-      void refreshAdminProfile(adminId);
-    }
-  }, [adminId, adminProfile, communityLoading, refreshAdminProfile]);
+  const [isPending, startTransition] = useTransition();
 
   const handleLogout = () => {
-    setAdminId(null);
-    void setSelectedGuild(null);
-    router.push('/');
-  }
+    startTransition(async () => {
+      await logout();
+      router.push('/');
+    });
+  };
 
-  if (communityLoading) {
+  if (!adminProfile) {
     return (
       <div className="flex items-center gap-2 p-2">
         <Skeleton className="h-8 w-8 rounded-full" />
@@ -50,8 +59,7 @@ export function UserNav() {
     )
   }
 
-  const discordInfo = adminProfile?.discordInfo ?? null;
-  const twitchInfo = adminProfile?.twitchInfo ?? null;
+  const { discordInfo, twitchInfo } = adminProfile;
 
   if (!discordInfo) {
      return (

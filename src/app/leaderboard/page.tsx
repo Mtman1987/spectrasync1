@@ -1,11 +1,19 @@
+import { AppLayout } from "@/components/layout/app-layout";
+import { redirect } from 'next/navigation';
+import { getSession, getAdminInfo } from "@/app/actions";
 
-import { AppLayout } from "@/components/layout/app-layout"
+export default async function LeaderboardPage() {
+  const session = await getSession();
+  if (!session.isLoggedIn || !session.adminId) {
+    redirect('/');
+  }
 
-// This is a placeholder page to associate the server actions with a route.
-// The actual leaderboard is displayed via Discord embeds.
-export default function LeaderboardPage() {
+  const { value: adminData } = await getAdminInfo(session.adminId);
+  const selectedGuild = adminData?.selectedGuild ?? null;
+  const adminGuilds = adminData?.guilds ?? [];
+
   return (
-    <AppLayout>
+    <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={selectedGuild}>
       <div className="flex flex-col gap-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">
@@ -17,5 +25,5 @@ export default function LeaderboardPage() {
         </div>
       </div>
     </AppLayout>
-  )
+  );
 }

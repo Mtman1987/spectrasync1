@@ -1,5 +1,4 @@
-
-"use client"
+'use client'
 
 import React, { useState, useEffect, useCallback, useTransition, Suspense } from "react"
 import { Calendar } from "@/components/ui/calendar"
@@ -15,12 +14,12 @@ import { AppLayout } from "@/components/layout/app-layout"
 import { getCalendarEvents, type CalendarEvent, getAnnouncementSignups, signUpForAnnouncement, type AnnouncementSignup } from "@/app/calendar/actions"
 import { AddEventForm } from "@/app/calendar/add-event-form"
 import { Button } from "@/components/ui/button"
-import { format, startOfDay } from "date-fns"
+import { format, startOfDay, parse } from "date-fns"
 import { useToast } from "@/hooks/use-toast"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { DayContent, DayContentProps } from "react-day-picker"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
 
 const eventIcons = {
   Community: Users,
@@ -29,40 +28,38 @@ const eventIcons = {
   Admin: Shield,
 };
 
-function CalendarPageContent({ guildId, adminDiscordId }: { guildId: string | null, adminDiscordId: string | null }) {
+function CalendarPageContent({ 
+    guildId, 
+    adminDiscordId, 
+    adminProfile, 
+    adminGuilds, 
+    selectedGuild, 
+    initialEvents, 
+    initialSignups,
+    currentMonthString
+}: { 
+    guildId: string | null, 
+    adminDiscordId: string | null, 
+    adminProfile: any, 
+    adminGuilds: any[], 
+    selectedGuild: string | null, 
+    initialEvents: CalendarEvent[], 
+    initialSignups: { [day: string]: AnnouncementSignup },
+    currentMonthString: string
+}) {
   const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [signups, setSignups] = useState<{ [day: string]: AnnouncementSignup }>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [currentMonth, setCurrentMonth] = useState(parse(currentMonthString, 'yyyy-MM', new Date()));
+  const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
+  const [signups, setSignups] = useState<{ [day: string]: AnnouncementSignup }>(initialSignups);
   const [isPending, startTransition] = useTransition();
 
-  const fetchData = useCallback(async (gId: string, date: Date) => {
-    setIsLoading(true);
-    const monthKey = format(date, 'yyyy-MM');
-    const [fetchedEvents, fetchedSignups] = await Promise.all([
-        getCalendarEvents(gId),
-        getAnnouncementSignups(gId, monthKey)
-    ]);
-    setEvents(fetchedEvents);
-    setSignups(fetchedSignups);
-    setIsLoading(false);
-  }, []);
-
-
-  useEffect(() => {
-    if (guildId) {
-        fetchData(guildId, currentMonth);
-    } else {
-        setIsLoading(false);
-    }
-  }, [fetchData, currentMonth, guildId]);
-
   const handleMonthChange = (month: Date) => {
-    setCurrentMonth(month);
-    // This will trigger the useEffect to refetch data for the new month
+    const newMonthString = format(month, 'yyyy-MM');
+    router.push(`${pathname}?month=${newMonthString}`);
   };
   
   const executeSignUp = async (discordId: string) => {
@@ -79,14 +76,11 @@ function CalendarPageContent({ guildId, adminDiscordId }: { guildId: string | nu
     startTransition(async () => {
         const monthKey = format(selectedDate, 'yyyy-MM');
         const dayKey = format(selectedDate, 'dd');
-        // The emoji is no longer needed here.
         const result = await signUpForAnnouncement(guildId, monthKey, dayKey, discordId);
 
         if (result.success) {
             toast({ title: "Spot Claimed!", description: `You signed up for announcements on ${format(selectedDate, 'MMMM do')}. ${result.message}` });
-            if (guildId) {
-                fetchData(guildId, currentMonth); // Refresh data
-            }
+            router.refresh(); // Refresh server components
         } else {
             toast({ title: "Error", description: result.error, variant: "destructive" });
         }
@@ -136,7 +130,7 @@ function CalendarPageContent({ guildId, adminDiscordId }: { guildId: string | nu
           </div>
       </div>
 
-       {!guildId && !isLoading && (
+       {!guildId && (
             <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Community Not Found</AlertTitle>
@@ -178,7 +172,7 @@ function CalendarPageContent({ guildId, adminDiscordId }: { guildId: string | nu
                     footer={
                       <div className="mt-4 flex flex-col gap-4 p-4 pt-0">
                           <div className="flex flex-col sm:flex-row justify-center gap-2">
-                              <AddEventForm onEventAdded={() => guildId && fetchData(guildId, currentMonth)} guildId={guildId} />
+                              <AddEventForm onEventAdded={() => router.refresh()} guildId={guildId} />
                               <Button onClick={handleSignUp} disabled={(!canSignUp && !!adminDiscordId) || isPending} className="w-full sm:w-auto">
                                   {isPending ? <Loader2 className="mr-2 animate-spin" /> : <UserPlus className="mr-2" />}
                                   {isDateTaken ? "Spot Taken" : (!canSignUp && !!adminDiscordId) ? "Limit Reached" : "Claim Announcement Spot"}
@@ -197,15 +191,10 @@ function CalendarPageContent({ guildId, adminDiscordId }: { guildId: string | nu
             <CardTitle className="font-headline">Upcoming Events</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {isLoading && (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-8 w-8 animate-spin" />
-              </div>
-            )}
-            {!isLoading && events.length === 0 && (
+            {events.length === 0 && (
               <p className="text-muted-foreground text-center">No upcoming events.</p>
             )}
-            {!isLoading && events.map((event) => {
+            {events.map((event) => {
               const Icon = eventIcons[event.type as keyof typeof eventIcons] || Users;
               return (
                   <div key={event.id} className="flex items-start gap-4">
@@ -234,13 +223,17 @@ function CalendarPageContent({ guildId, adminDiscordId }: { guildId: string | nu
     return <div className="p-4 bg-background">{pageContent}</div>;
   }
 
-  return <AppLayout>{pageContent}</AppLayout>;
+  return (
+    <AppLayout adminProfile={adminProfile} adminGuilds={adminGuilds} selectedGuild={selectedGuild}>
+        {pageContent}
+    </AppLayout>
+  );
 }
 
-async function CalendarPageWrapper() {
-  const { getSession } = await import('@/lib/session');
-  const { getAdminInfo } = await import('@/app/actions');
+async function CalendarPageWrapper({ searchParams }: { searchParams: { month?: string } }) {
+  const { getSession, getAdminInfo, getCalendarEvents, getAnnouncementSignups } = await import('@/app/actions');
   const { redirect } = await import('next/navigation');
+  const { format, parse } = await import('date-fns');
 
   const session = await getSession();
   if (!session.isLoggedIn || !session.adminId) {
@@ -249,10 +242,34 @@ async function CalendarPageWrapper() {
 
   const { value: adminData } = await getAdminInfo(session.adminId);
   const guildId = adminData?.selectedGuild ?? null;
+  const adminGuilds = adminData?.guilds ?? [];
+
+  const currentMonthString = searchParams?.month || format(new Date(), 'yyyy-MM');
+  const monthDate = parse(currentMonthString, 'yyyy-MM', new Date());
+
+  let initialEvents: CalendarEvent[] = [];
+  let initialSignups: { [day: string]: AnnouncementSignup } = {};
+
+  if (guildId) {
+    const monthKey = format(monthDate, 'yyyy-MM');
+    [initialEvents, initialSignups] = await Promise.all([
+        getCalendarEvents(guildId),
+        getAnnouncementSignups(guildId, monthKey)
+    ]);
+  }
 
   return (
     <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Loading Calendar...</div>}>
-      <CalendarPageContent guildId={guildId} adminDiscordId={session.adminId} />
+      <CalendarPageContent 
+        guildId={guildId} 
+        adminDiscordId={session.adminId}
+        adminProfile={adminData}
+        adminGuilds={adminGuilds}
+        selectedGuild={guildId}
+        initialEvents={initialEvents}
+        initialSignups={initialSignups}
+        currentMonthString={currentMonthString}
+      />
     </Suspense>
   );
 }

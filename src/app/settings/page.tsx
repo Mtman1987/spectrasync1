@@ -1,13 +1,10 @@
-
-"use client";
-
 import { Suspense } from "react";
-import { SettingsClientPage } from "./settings-client";
 import { redirect } from "next/navigation";
-import { getAdminInfo } from "@/app/actions";
+import { getSession, getAdminInfo } from "@/app/actions";
+import { SettingsClientPage } from "./settings-client";
+import { AppLayout } from "@/components/layout/app-layout";
 
-async function SettingsPageContent() {
-    const { getSession } = await import('@/lib/session');
+export default async function SettingsPage() {
     const session = await getSession();
 
     if (!session.isLoggedIn || !session.adminId) {
@@ -15,22 +12,22 @@ async function SettingsPageContent() {
     }
 
     const { value: adminData } = await getAdminInfo(session.adminId);
-    const selectedGuild = adminData?.selectedGuild;
+    const selectedGuild = adminData?.selectedGuild ?? null;
+    const adminGuilds = adminData?.guilds ?? [];
 
-    if (!selectedGuild) {
-        // Or render a message asking them to select a guild
-        redirect('/dashboard');
-    }
+    const pageContent = (
+        <SettingsClientPage 
+            guildId={selectedGuild} 
+            adminId={session.adminId} 
+            initialCommunityInfo={adminData?.discordUserGuilds?.find((g: any) => g.id === selectedGuild) || null} 
+        />
+    );
 
-    const initialCommunityInfo = adminData?.discordUserGuilds?.find((g: any) => g.id === selectedGuild) || null;
-
-    return <SettingsClientPage guildId={selectedGuild} adminId={session.adminId} initialCommunityInfo={initialCommunityInfo} />
-}
-
-export default function SettingsPage() {
     return (
         <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Loading Settings...</div>}>
-           <SettingsPageContent />
+            <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={selectedGuild}>
+                {pageContent}
+            </AppLayout>
         </Suspense>
-    )
+    );
 }

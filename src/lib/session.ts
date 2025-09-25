@@ -1,22 +1,22 @@
 // src/lib/session.ts
-import { getIronSession } from 'iron-session';
-import { cookies } from 'next/headers';
+import type { IronSessionOptions } from 'iron-session';
+import { getRuntimeValue } from './runtime-config';
 
-interface SessionData {
+export interface SessionData {
   adminId?: string;
   isLoggedIn: boolean;
 }
 
-export const getSession = () => {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    throw new Error('SESSION_SECRET is not set in environment variables.');
-  }
-  return getIronSession<SessionData>(cookies(), {
-    password: secret,
-    cookieName: 'cosmic-raid-session',
-    cookieOptions: {
-      secure: process.env.NODE_ENV === 'production',
-    },
-  });
-};
+export async function getSessionOptions(): Promise<IronSessionOptions> {
+    const secret = await getRuntimeValue<string>('SESSION_SECRET');
+    if (!secret) {
+        throw new Error('SESSION_SECRET is not set in runtime configuration.');
+    }
+    return {
+        password: secret,
+        cookieName: 'cosmic-raid-session',
+        cookieOptions: {
+            secure: process.env.NODE_ENV === 'production',
+        },
+    };
+}

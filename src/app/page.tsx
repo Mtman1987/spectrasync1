@@ -1,7 +1,6 @@
-
 // src/app/page.tsx (Server Component)
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/session';
+import { getSession } from '@/app/actions';
 import { CosmicRaidLogo } from "@/components/icons";
 
 export default async function HomePage() {

@@ -3,6 +3,7 @@
  * Converts a Twitch clip video URL into a GIF using the FreeConvert API.
  */
 import { ai } from '@/ai/genkit';
+import { getRuntimeValue } from '@/lib/runtime-config';
 import { z } from 'zod';
 
 const GenerateGifInputSchema = z.object({
@@ -29,12 +30,7 @@ function formatDurationSeconds(seconds: number): string {
   return iso.slice(11, 23);
 }
 
-async function createFreeConvertJob(videoUrl: string, duration: number | undefined) {
-  const token = process.env.FREECONVERT_TOKEN;
-  if (!token) {
-    throw new Error('FREECONVERT_TOKEN is not configured.');
-  }
-
+async function createFreeConvertJob(videoUrl: string, duration: number | undefined, token: string) {
   const cutEnd = formatDurationSeconds(typeof duration === 'number' && !Number.isNaN(duration) ? duration : 15);
 
   const body = {
@@ -68,7 +64,7 @@ async function createFreeConvertJob(videoUrl: string, duration: number | undefin
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${token}` ,
     },
     body: JSON.stringify(body),
   });
@@ -82,18 +78,13 @@ async function createFreeConvertJob(videoUrl: string, duration: number | undefin
   return json;
 }
 
-async function pollFreeConvertJob(jobId: string, timeoutMs = 240_000, intervalMs = 5_000) {
-  const token = process.env.FREECONVERT_TOKEN;
-  if (!token) {
-    throw new Error('FREECONVERT_TOKEN is not configured.');
-  }
-
+async function pollFreeConvertJob(jobId: string, token: string, timeoutMs = 240_000, intervalMs = 5_000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const response = await fetch(`https://api.freeconvert.com/v1/process/jobs/${jobId}`, {
       headers: {
         Accept: 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${token}` ,
       },
     });
     const json = await response.json();
@@ -126,13 +117,18 @@ const generateGifFlow = ai.defineFlow(
     outputSchema: GenerateGifOutputSchema,
   },
   async ({ videoUrl, videoDuration }) => {
-    const job = await createFreeConvertJob(videoUrl, videoDuration);
+    const token = await getRuntimeValue<string>('FREE_CONVERT_API_KEY');
+    if (!token) {
+      throw new Error('FREE_CONVERT_API_KEY is not configured in runtime settings.');
+    }
+
+    const job = await createFreeConvertJob(videoUrl, videoDuration, token);
     const jobId = job?.id;
     if (!jobId) {
       throw new Error('FreeConvert job did not return an id.');
     }
 
-    const gifUrl = await pollFreeConvertJob(jobId, 240_000, 5_000);
+    const gifUrl = await pollFreeConvertJob(jobId, token, 240_000, 5_000);
     if (!gifUrl) {
       throw new Error('GIF rendering failed or timed out.');
     }

@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import React, { useState, useEffect, useTransition, useMemo, useCallback } from "react";
 import { format, isSameDay, getHours } from "date-fns"
@@ -65,7 +65,20 @@ function QuickLinkCard({ guildId }: { guildId: string | null }) {
     );
 }
 
-export default function RaidTrainClient({ guildId }: { guildId: string | null }) {
+interface AdminProfile {
+  discordInfo: { id: string; username: string; avatar: string | null; };
+  twitchInfo?: any;
+}
+interface AdminGuild { id: string; name: string; icon: string | null; }
+
+interface RaidTrainClientProps {
+    guildId: string | null;
+    adminProfile: AdminProfile | null;
+    adminGuilds: AdminGuild[];
+    selectedGuild: string | null;
+}
+
+export default function RaidTrainClient({ guildId, adminProfile, adminGuilds, selectedGuild }: RaidTrainClientProps) {
     const searchParams = useSearchParams();
     const { toast } = useToast();
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -206,5 +219,5 @@ export default function RaidTrainClient({ guildId }: { guildId: string | null })
         return pageContent;
     }
     
-    return <AppLayout>{pageContent}</AppLayout>
+    return <AppLayout adminProfile={adminProfile} adminGuilds={adminGuilds} selectedGuild={selectedGuild}>{pageContent}</AppLayout>
 }

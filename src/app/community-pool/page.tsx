@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/session';
-import { getAdminInfo, getLiveCommunityPoolUsers } from '@/app/actions';
+import { getSession, getAdminInfo, getLiveCommunityPoolUsers } from '@/app/actions';
 import { CommunityPoolClientPage } from '@/app/community-pool/community-pool-client-page';
 import { AppLayout } from '@/components/layout/app-layout';
 
@@ -16,10 +15,11 @@ export default async function CommunityPoolPage({ searchParams }: PageProps) {
 
   const { value: adminData } = await getAdminInfo(session.adminId);
   const guildId = adminData?.selectedGuild ?? null;
+  const adminGuilds = adminData?.guilds ?? [];
 
   if (!guildId) {
     return (
-      <AppLayout>
+      <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId}>
         <div className="text-center py-8 text-muted-foreground">
           Please select a community in your settings to view the community pool.
         </div>
@@ -43,5 +43,9 @@ export default async function CommunityPoolPage({ searchParams }: PageProps) {
     return <div className="p-4 bg-background">{pageContent}</div>;
   }
 
-  return <AppLayout>{pageContent}</AppLayout>;
+  return (
+    <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId}>
+      {pageContent}
+    </AppLayout>
+  );
 }

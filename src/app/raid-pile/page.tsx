@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
-import { getSession } from '@/lib/session';
-import { getAdminInfo, getLiveRaidPiles, getLeaderboard } from '@/app/actions';
+import { getSession, getAdminInfo, getLiveRaidPiles } from '@/app/actions';
+import { getLeaderboard } from '@/app/leaderboard/actions';
 import { RaidPileClientPage } from '@/app/raid-pile/raid-pile-client-page';
 import { AppLayout } from '@/components/layout/app-layout';
 
@@ -16,6 +16,7 @@ export default async function RaidPilePage({ searchParams }: PageProps) {
 
   const { value: adminData } = await getAdminInfo(session.adminId);
   const guildId = adminData?.selectedGuild ?? null;
+  const adminGuilds = adminData?.guilds ?? [];
   const isEmbedded = searchParams ? Object.prototype.hasOwnProperty.call(searchParams, 'frame_id') : false;
 
   if (!guildId) {
@@ -29,7 +30,11 @@ export default async function RaidPilePage({ searchParams }: PageProps) {
       return <div className="p-4 bg-background">{content}</div>;
     }
 
-    return <AppLayout>{content}</AppLayout>;
+    return (
+        <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId}>
+            {content}
+        </AppLayout>
+    );
   }
 
   const [initialRaidPiles, leaderboardData] = await Promise.all([
@@ -49,5 +54,9 @@ export default async function RaidPilePage({ searchParams }: PageProps) {
     return <div className="p-4 bg-background">{pageContent}</div>;
   }
 
-  return <AppLayout>{pageContent}</AppLayout>;
+  return (
+    <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId}>
+        {pageContent}
+    </AppLayout>
+  );
 }

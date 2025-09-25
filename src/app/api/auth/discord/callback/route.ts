@@ -1,9 +1,10 @@
-
 // src/app/api/auth/discord/callback/route.ts
 import { type NextRequest, NextResponse } from "next/server";
 import { saveAdminInfo } from "@/app/actions";
 import { getRuntimeValue } from "@/lib/runtime-config";
-import { getSession } from "@/lib/session";
+import { getIronSession } from 'iron-session';
+import { cookies } from 'next/headers';
+import { getSessionOptions, type SessionData } from '@/lib/session';
 
 const DEFAULT_BASE_URL = "https://spacemtn--cosmic-raid-app.us-central1.hosted.app";
 
@@ -107,7 +108,8 @@ export async function GET(request: NextRequest) {
         await saveAdminInfo(adminDiscordId, adminData);
 
         // Create a server-side session
-        const session = await getSession();
+        const sessionOptions = await getSessionOptions();
+        const session = await getIronSession<SessionData>(cookies(), sessionOptions);
         session.adminId = adminDiscordId;
         session.isLoggedIn = true;
         await session.save();
@@ -123,4 +125,3 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(errorRedirectUrl);
     }
 }
-    
