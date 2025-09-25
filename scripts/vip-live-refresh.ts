@@ -65,7 +65,12 @@ async function dispatchVipEmbed(guildId: string, config: VipLiveConfigDoc) {
   }
 
   const endpoint = new URL("/api/embeds", baseUrl).toString();
-  const body = { type: "vip-live", guildId, dispatch: true };
+  const body = {
+    type: "vip-live",
+    guildId,
+    channelId: config.channelId,
+    dispatch: true,
+  };
 
   const response = await fetch(endpoint, {
     method: "POST",
