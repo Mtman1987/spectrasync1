@@ -665,7 +665,7 @@ async function getVipLiveConfig(guildId: string): Promise<{ lastDispatchMessageI
 
 async function handleEmbedRequest(request: NextRequest) {
   try {
-    const secretStatus = validateBotSecret(request);
+    const secretStatus = await validateBotSecret(request);
     if (!secretStatus.valid) {
       return NextResponse.json({ error: "Unauthorized", reason: secretStatus.reason }, { status: 401 });
     }

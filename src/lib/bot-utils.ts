@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server";
+import { getRuntimeValue } from "./runtime-config";
 
 const DISCORD_API_BASE = process.env.DISCORD_API_BASE_URL ?? "https://discord.com/api/v10";
 
@@ -17,8 +18,8 @@ function shouldEnforceSecret(secretValue: string | undefined | null) {
   return normalized.length > 0 && !SECRET_PLACEHOLDERS.has(normalized);
 }
 
-export function validateBotSecret(request: NextRequest) {
-  const expectedSecret = process.env.BOT_SECRET_KEY;
+export async function validateBotSecret(request: NextRequest) {
+  const expectedSecret = await getRuntimeValue<string>("BOT_SECRET_KEY", process.env.BOT_SECRET_KEY);
   if (!shouldEnforceSecret(expectedSecret)) {
     // For local dev or unconfigured servers, we can be permissive.
     // In a real production environment, the secret should always be set.
@@ -52,7 +53,7 @@ export function validateBotSecret(request: NextRequest) {
 export async function deleteDiscordMessages(channelId: string, messageIds: string[]) {
   if (messageIds.length === 0) return;
 
-  const botToken = process.env.DISCORD_BOT_TOKEN;
+  const botToken = await getRuntimeValue<string>("DISCORD_BOT_TOKEN", process.env.DISCORD_BOT_TOKEN);
   if (!botToken) throw new Error("DISCORD_BOT_TOKEN is not configured.");
 
   const userAgent = process.env.DISCORD_USER_AGENT ?? "SpectraSyncBot/1.0 (+https://spectrasync.app)";

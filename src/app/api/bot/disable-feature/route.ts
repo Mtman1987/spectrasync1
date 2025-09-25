@@ -12,7 +12,7 @@ const FEATURE_TO_CONFIG_ID: Record<string, string> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const secretStatus = validateBotSecret(request);
+    const secretStatus = await validateBotSecret(request);
     if (!secretStatus.valid) {
       return NextResponse.json({ error: "Unauthorized", reason: secretStatus.reason }, { status: 401 });
     }
