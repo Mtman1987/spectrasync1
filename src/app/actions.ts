@@ -503,6 +503,7 @@ export async function getLiveVipUsers(guildId: string): Promise<LiveUser[]> {
         return [];
     }
     try {
+        console.log(`[DEBUG] Getting live VIPs for guild: ${guildId}`);
         const db = await getAdminDb();
         const usersSnapshot = await db
             .collection(`communities/${guildId}/users`)
@@ -510,12 +511,17 @@ export async function getLiveVipUsers(guildId: string): Promise<LiveUser[]> {
             .get();
 
         if (usersSnapshot.empty) {
+            console.log(`[DEBUG] No VIPs found in guild ${guildId}`);
             return [];
         }
 
+        console.log(`[DEBUG] Found ${usersSnapshot.docs.length} VIPs in database`);
+        
         const userIds = usersSnapshot.docs
             .map((doc) => doc.data().twitchInfo?.id)
             .filter((id): id is string => Boolean(id));
+
+        console.log(`[DEBUG] VIP Twitch IDs:`, userIds);
 
         const fallbackUsers = usersSnapshot.docs.map((doc) => {
             const data = doc.data();
@@ -536,13 +542,18 @@ export async function getLiveVipUsers(guildId: string): Promise<LiveUser[]> {
         const vipUsers = userIds.length > 0 ? await getUsersFromDb(guildId, userIds) : fallbackUsers;
         const liveDataById = userIds.length > 0 ? await getLiveUsersFromTwitch(userIds) : {};
 
+        console.log(`[DEBUG] Live data from Twitch API:`, Object.keys(liveDataById));
+
         const loginData = new Map<string, Pick<LiveUser, 'latestGameName' | 'latestViewerCount' | 'latestStreamTitle' | 'started_at'>>();
         const fallbackLogins = vipUsers
             .filter((user) => !liveDataById[user.twitchId] && user.twitchLogin)
             .map((user) => user.twitchLogin!.toLowerCase());
 
+        console.log(`[DEBUG] Fallback logins to check:`, fallbackLogins);
+
         if (fallbackLogins.length > 0) {
             const fallbackStreams = await getTwitchStreamsByLogins(fallbackLogins);
+            console.log(`[DEBUG] Fallback streams found:`, fallbackStreams.map(s => s.user_login));
             fallbackStreams.forEach((stream) => {
                 const loginKey = stream.user_login?.toLowerCase();
                 if (!loginKey) {
@@ -561,10 +572,13 @@ export async function getLiveVipUsers(guildId: string): Promise<LiveUser[]> {
             .map((user) => {
                 const loginKey = user.twitchLogin ? user.twitchLogin.toLowerCase() : undefined;
                 const twitchData = (user.twitchId && liveDataById[user.twitchId]) || (loginKey ? loginData.get(loginKey) : undefined);
+                const isLive = !!twitchData;
+                console.log(`[DEBUG] VIP ${user.displayName} (${user.twitchLogin}): ${isLive ? 'LIVE' : 'OFFLINE'}`);
                 return twitchData ? { ...user, ...twitchData } : null;
             })
             .filter((user): user is LiveUser => user !== null);
 
+        console.log(`[DEBUG] Final live VIPs: ${liveUsers.length}`, liveUsers.map(u => u.displayName));
         return liveUsers;
     } catch (error) {
         console.error(`Error getting live VIP users for guild ${guildId}:`, error);
