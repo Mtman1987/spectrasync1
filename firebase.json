@@ -1,12 +1,15 @@
 {
-  "apphosting": {
-    "source": ".",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ]
-  },
+  "apphosting": [
+    {
+      "backendId": "spacemtn",
+      "rootDir": ".",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ]
+    }
+  ],
   "emulators": {
     "auth": {
       "port": 9099
