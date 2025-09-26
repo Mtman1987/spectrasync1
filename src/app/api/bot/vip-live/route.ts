@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getAdminDb } from '@/lib/firebase-admin';
 import { getLiveVipUsers } from '@/app/actions';
 
 export const dynamic = 'force-dynamic';
@@ -58,6 +57,7 @@ async function deleteDiscordMessage(webhookUrl: string, messageId: string) {
 }
 
 async function processGuild(guildId: string) {
+  const { getAdminDb } = await import('@/lib/firebase-admin');
   const db = await getAdminDb();
   
   const settingsDoc = await db.collection(`communities/${guildId}/settings`).doc('vipLive').get();
@@ -111,6 +111,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
+    const { getAdminDb } = await import('@/lib/firebase-admin');
     const db = await getAdminDb();
     const communitiesSnapshot = await db.collection('communities').get();
     

@@ -6,7 +6,7 @@ import { buildCalendarEmbed } from "@/app/calendar/actions";
 import { buildLeaderboardEmbed } from "@/app/leaderboard/actions";
 import { getLiveVipUsers, getTwitchClips } from "@/app/actions";
 import { deleteDiscordMessages, validateBotSecret } from "@/lib/bot-utils";
-import { getAdminDb } from "@/lib/firebase-admin";
+
 import { getRuntimeValue } from "@/lib/runtime-config";
 import { sanitizeForLog } from "@/lib/sanitize";
 import type { LiveUser } from "@/app/raid-pile/types";
@@ -212,6 +212,7 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
     const username = vip.displayName;
 
     // 2. Check cache (using Firestore)
+    const { getAdminDb } = await import('@/lib/firebase-admin');
     const db = await getAdminDb();
     const cacheRef = db.collection("gifPreviews").doc(clip.id);
     const cacheDoc = await cacheRef.get();
@@ -732,6 +733,7 @@ async function persistVipLiveConfig(
       return;
     }
 
+    const { getAdminDb } = await import('@/lib/firebase-admin');
     const db = await getAdminDb();
     const settingsRef = db
       .collection("communities")
@@ -788,6 +790,7 @@ async function getVipLiveConfig(
     return null;
   }
   try {
+    const { getAdminDb } = await import('@/lib/firebase-admin');
     const db = await getAdminDb();
     const docRef = db
       .collection("communities")

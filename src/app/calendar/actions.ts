@@ -1,8 +1,6 @@
-
 // src/app/calendar/actions.ts
 "use server";
 
-import { getAdminDb } from "@/lib/firebase-admin";
 import { format, startOfDay, parseISO, startOfMonth, getDaysInMonth, getDay, parse } from "date-fns";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getSettings } from "../settings/actions";
@@ -37,6 +35,7 @@ export async function addCalendarEvent(guildId: string, eventData: Omit<Calendar
         return { success: false, error: "Community ID is missing." };
     }
     try {
+        const { getAdminDb } = await import('@/lib/firebase-admin');
         const db = await getAdminDb();
         const calendarCollectionRef = db.collection(`communities/${guildId}/calendar`);
         const docRef = await calendarCollectionRef.add(eventData);
@@ -84,6 +83,7 @@ export async function getCalendarEvents(guildId: string): Promise<CalendarEvent[
         return [];
     }
     try {
+        const { getAdminDb } = await import('@/lib/firebase-admin');
         const db = await getAdminDb();
         const calendarCollectionRef = db.collection(`communities/${guildId}/calendar`);
         const q = calendarCollectionRef.orderBy("date", "asc");
@@ -117,6 +117,7 @@ export async function getAnnouncementSignups(guildId: string, monthKey: string):
         return {};
     }
     try {
+        const { getAdminDb } = await import('@/lib/firebase-admin');
         const db = await getAdminDb();
         const logRef = db.collection(`communities/${guildId}/captainsLog`).doc(monthKey);
         const doc = await logRef.get();
@@ -160,6 +161,7 @@ export async function signUpForAnnouncement(guildId: string, monthKey: string, d
         return { success: false, error: "Missing required information for signup." };
     }
     try {
+        const { getAdminDb } = await import('@/lib/firebase-admin');
         const db = await getAdminDb();
         
         // Try to get admin info first.
@@ -267,7 +269,8 @@ export async function getTodaysAnnouncer(guildId: string): Promise<TodaysAnnounc
         return null;
     }
     try {
-        const db = getAdminDb();
+        const { getAdminDb } = await import('@/lib/firebase-admin');
+        const db = await getAdminDb();
         const today = new Date();
         const monthKey = format(today, 'yyyy-MM');
         const dayKey = format(today, 'dd');
@@ -465,7 +468,8 @@ export async function setCalendarControlMessage(guildId: string, channelId: stri
         return { success: false, error: "Missing required IDs." };
     }
     try {
-        const db = getAdminDb();
+        const { getAdminDb } = await import('@/lib/firebase-admin');
+        const db = await getAdminDb();
         const settingsRef = db.collection('communities').doc(guildId).collection('settings').doc('calendarControl');
         await settingsRef.set({ channelId, messageId }, { merge: true });
         return { success: true };

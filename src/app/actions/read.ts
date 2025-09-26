@@ -1,10 +1,10 @@
 'use server';
 
-import { getAdminDb } from "@/lib/firebase-admin";
 import { getTwitchStreams } from "@/lib/twitch";
 import type { LiveUser } from "@/app/raid-pile/types";
 
 export async function getRaidPile(guildId: string): Promise<LiveUser[]> {
+  const { getAdminDb } = await import('@/lib/firebase-admin');
   const db = await getAdminDb();
   const pileSnapshot = await db.collection('communities').doc(guildId).collection('raidPile').orderBy('joinedAt', 'asc').get();
   const pileUsers = pileSnapshot.docs.map(doc => doc.data() as { twitchId: string, displayName: string, avatarUrl: string, twitchLogin: string });
@@ -30,6 +30,7 @@ export async function getRaidPile(guildId: string): Promise<LiveUser[]> {
 }
 
 export async function getRaidTrain(guildId: string) {
+    const { getAdminDb } = await import('@/lib/firebase-admin');
     const db = await getAdminDb();
     const scheduleSnapshot = await db.collection('communities').doc(guildId).collection('raidTrain').doc('schedule').get();
     if (!scheduleSnapshot.exists) {
@@ -39,6 +40,7 @@ export async function getRaidTrain(guildId: string) {
 }
 
 export async function getCommunityPoolVips(guildId: string) {
+    const { getAdminDb } = await import('@/lib/firebase-admin');
     const db = await getAdminDb();
     const usersSnapshot = await db.collection('communities').doc(guildId).collection('users').where('communityPoolOptIn', '==', true).get();
     const poolUsers = usersSnapshot.docs.map(doc => doc.data() as { twitchId: string, displayName: string, avatarUrl: string, twitchLogin: string });
@@ -63,7 +65,9 @@ export async function getCommunityPoolVips(guildId: string) {
             };
         });
 
-    const settingsSnapshot = await db.collection('communities').doc(guildId).collection('settings').doc('communityPoolConfig').get();
+    const { getAdminDb: getDb2 } = await import('@/lib/firebase-admin');
+    const db2 = await getDb2();
+    const settingsSnapshot = await db2.collection('communities').doc(guildId).collection('settings').doc('communityPoolConfig').get();
     const lastSpotlightedId = settingsSnapshot.exists ? settingsSnapshot.data()?.lastSpotlightedId : null;
 
     return { live, lastSpotlightedId };
