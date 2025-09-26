@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, 'src'),
     };
+    config.ignoreWarnings = [
+      /Critical dependency: the request of a dependency is an expression/,
+      /require\.extensions is not supported by webpack/,
+    ];
     return config;
   },
   typescript: {

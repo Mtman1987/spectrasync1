@@ -10,6 +10,11 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
     return cached;
   }
 
+  // Skip Firebase calls during build
+  if (process.env.NODE_ENV === 'production' && !process.env.FIREBASE_PROJECT_ID) {
+    return {};
+  }
+
   try {
     const db = await getAdminDb();
     const ref = db.collection("app_settings").doc("runtime");

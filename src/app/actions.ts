@@ -836,7 +836,7 @@ export async function addPointsToAdmin(guildId: string, adminDiscordId: string, 
 
 export async function getSession(): Promise<SessionData> {
     const sessionOptions = await getSessionOptions();
-    const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+    const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
     
     // Default values if session is new
     if (!session.isLoggedIn) {
@@ -856,7 +856,8 @@ export async function updateSelectedGuild(guildId: string) {
 }
 
 export async function logout() {
-    const session = await getSession();
-    await session.destroy();
+    const sessionOptions = await getSessionOptions();
+    const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
+    session.destroy();
     revalidatePath("/", "layout");
 }
