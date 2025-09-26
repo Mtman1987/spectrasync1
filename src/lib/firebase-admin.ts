@@ -153,8 +153,21 @@ async function resolveServiceAccount(): Promise<ServiceAccountConfig | null> {
 }
 
 async function ensureAdminApp(): Promise<void> {
+  // Skip initialization during build
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    throw new Error('Firebase Admin not available during build');
+  }
+
   if (admin.apps.length > 0) {
     return;
+  }
+
+  // Check if default app already exists
+  try {
+    admin.app();
+    return; // Default app exists
+  } catch {
+    // Default app doesn't exist, continue with initialization
   }
 
   const serviceAccount = await resolveServiceAccount();
