@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { getRuntimeValue } from "./runtime-config";
+import { isValidUrl } from "./sanitize";
 
 const DISCORD_API_BASE = process.env.DISCORD_API_BASE_URL ?? "https://discord.com/api/v10";
 
@@ -59,7 +60,11 @@ export async function deleteDiscordMessages(channelId: string, messageIds: strin
   const userAgent = process.env.DISCORD_USER_AGENT ?? "SpectraSyncBot/1.0 (+https://spectrasync.app)";
 
   if (messageIds.length === 1) {
-    const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages/${messageIds[0]}`, {
+    const deleteUrl = `${DISCORD_API_BASE}/channels/${channelId}/messages/${messageIds[0]}`;
+    if (!isValidUrl(deleteUrl)) {
+      throw new Error('Invalid Discord API URL');
+    }
+    const response = await fetch(deleteUrl, {
       method: "DELETE",
       headers: { Authorization: `Bot ${botToken}`, "User-Agent": userAgent },
     });
@@ -69,7 +74,11 @@ export async function deleteDiscordMessages(channelId: string, messageIds: strin
     return;
   }
 
-  const response = await fetch(`${DISCORD_API_BASE}/channels/${channelId}/messages/bulk-delete`, {
+  const bulkDeleteUrl = `${DISCORD_API_BASE}/channels/${channelId}/messages/bulk-delete`;
+  if (!isValidUrl(bulkDeleteUrl)) {
+    throw new Error('Invalid Discord API URL');
+  }
+  const response = await fetch(bulkDeleteUrl, {
     method: "POST",
     headers: { Authorization: `Bot ${botToken}`, "Content-Type": "application/json", "User-Agent": userAgent },
     body: JSON.stringify({ messages: messageIds.slice(0, 100) }), // API limit is 100

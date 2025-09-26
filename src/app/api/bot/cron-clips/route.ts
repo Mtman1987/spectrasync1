@@ -4,10 +4,10 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import { getTwitchClips, getClipById } from '@/app/actions';
 import { generateGifFromUrl } from '@/ai/flows/generate-gif';
 import { FieldValue } from 'firebase-admin/firestore';
-
-const db = getAdminDb();
+import { sanitizeForLog } from '@/lib/sanitize';
 
 async function processClipsForGuild(guildId: string) {
+    const db = await getAdminDb();
     const usersSnapshot = await db.collection(`communities/${guildId}/users`).where('isVip', '==', true).get();
     if (usersSnapshot.empty) {
         console.log(`[Clip Cron] No VIPs found for guild ${guildId}.`);
@@ -68,6 +68,7 @@ async function processClipsForGuild(guildId: string) {
  */
 export async function GET(request: NextRequest) {
   try {
+    const db = await getAdminDb();
     const communitiesSnapshot = await db.collection('communities').get();
     if (communitiesSnapshot.empty) {
       return NextResponse.json({ success: true, message: 'No communities to process.' });
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
     const allResults = [];
     for (const communityDoc of communitiesSnapshot.docs) {
         const guildId = communityDoc.id;
-        console.log(`[Clip Cron] Processing guild: ${guildId}`);
+        console.log(`[Clip Cron] Processing guild: ${sanitizeForLog(guildId)}`);
         const result = await processClipsForGuild(guildId);
         allResults.push({ guildId, ...result });
     }

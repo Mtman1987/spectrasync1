@@ -3,6 +3,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { saveUserInfoByDiscordId } from "@/app/actions";
 import { getRuntimeValue } from "@/lib/runtime-config";
+import { isValidUrl } from "@/lib/sanitize";
 
 const DEFAULT_BASE_URL = "https://spacemtn--cosmic-raid-app.us-central1.hosted.app";
 
@@ -74,11 +75,20 @@ export async function GET(request: NextRequest) {
         }
         
         const accessToken = tokenData.access_token;
+        
+        // Validate Discord API endpoints to prevent SSRF
+        const guildsUrl = 'https://discord.com/api/users/@me/guilds';
+        const userUrl = 'https://discord.com/api/users/@me';
+        
+        if (!isValidUrl(guildsUrl) || !isValidUrl(userUrl)) {
+            throw new Error('Invalid Discord API URLs');
+        }
+        
         const [guildsResponse, userResponse] = await Promise.all([
-            fetch('https://discord.com/api/users/@me/guilds', {
+            fetch(guildsUrl, {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             }),
-            fetch('https://discord.com/api/users/@me', {
+            fetch(userUrl, {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             })
         ]);

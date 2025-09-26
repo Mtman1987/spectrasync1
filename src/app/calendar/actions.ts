@@ -37,7 +37,7 @@ export async function addCalendarEvent(guildId: string, eventData: Omit<Calendar
         return { success: false, error: "Community ID is missing." };
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const calendarCollectionRef = db.collection(`communities/${guildId}/calendar`);
         const docRef = await calendarCollectionRef.add(eventData);
         
@@ -84,7 +84,7 @@ export async function getCalendarEvents(guildId: string): Promise<CalendarEvent[
         return [];
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const calendarCollectionRef = db.collection(`communities/${guildId}/calendar`);
         const q = calendarCollectionRef.orderBy("date", "asc");
         const querySnapshot = await q.get();
@@ -117,7 +117,7 @@ export async function getAnnouncementSignups(guildId: string, monthKey: string):
         return {};
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const logRef = db.collection(`communities/${guildId}/captainsLog`).doc(monthKey);
         const doc = await logRef.get();
 
@@ -160,7 +160,7 @@ export async function signUpForAnnouncement(guildId: string, monthKey: string, d
         return { success: false, error: "Missing required information for signup." };
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         
         // Try to get admin info first.
         let { value: profileData, error } = await getAdminInfo(discordId);

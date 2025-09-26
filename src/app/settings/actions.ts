@@ -84,7 +84,7 @@ export async function saveSettings(guildId: string, settings: Partial<CommunityS
         return { success: false, error: "Community ID is required." };
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const settingsRef = db.collection('communities').doc(guildId).collection('settings').doc('points');
         await settingsRef.set(settings, { merge: true });
         return { success: true };
@@ -100,7 +100,7 @@ export async function getSettings(guildId: string): Promise<CommunitySettings> {
         return defaultSettings;
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const doc = await db.collection('communities').doc(guildId).collection('settings').doc('points').get();
 
         if (!doc.exists) {
@@ -122,7 +122,7 @@ export async function addWebhook(guildId: string, name: string, url: string) {
         return { success: false, error: "Missing required fields." };
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const webhooksCollection = db.collection(`communities/${guildId}/webhooks`);
         await webhooksCollection.add({
             name,
@@ -139,7 +139,7 @@ export async function addWebhook(guildId: string, name: string, url: string) {
 export async function getWebhooks(guildId: string): Promise<Webhook[]> {
     if (!guildId) return [];
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const snapshot = await db.collection(`communities/${guildId}/webhooks`).get();
         if (snapshot.empty) return [];
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Webhook));
@@ -154,7 +154,7 @@ export async function updateWebhookStatus(guildId: string, webhookId: string, en
         return { success: false, error: "Missing required fields." };
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         await db.collection(`communities/${guildId}/webhooks`).doc(webhookId).update({ enabled });
         return { success: true };
     } catch (e) {
@@ -168,7 +168,7 @@ export async function deleteWebhook(guildId: string, webhookId: string) {
         return { success: false, error: "Missing required fields." };
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         await db.collection(`communities/${guildId}/webhooks`).doc(webhookId).delete();
         return { success: true };
     } catch (e) {
@@ -210,7 +210,7 @@ export async function testGifWebhook({
         return { success: false, error: "Community, webhook, and MP4 URL are required." };
     }
 
-    const db = getAdminDb();
+    const db = await getAdminDb();
     const webhookSnap = await db.collection(`communities/${guildId}/webhooks`).doc(webhookId).get();
     if (!webhookSnap.exists) {
         return { success: false, error: "Webhook could not be found for this community." };

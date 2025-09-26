@@ -7,6 +7,7 @@ import { getRuntimeValue } from "@/lib/runtime-config";
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { getSessionOptions, type SessionData } from '@/lib/session';
+import { isValidUrl } from '@/lib/sanitize';
 
 const DEFAULT_BASE_URL = "https://spacemtn--cosmic-raid-app.us-central1.hosted.app";
 
@@ -73,11 +74,20 @@ export async function GET(request: NextRequest) {
         }
         const accessToken = tokenData.access_token;
 
+        // Validate Discord API endpoints to prevent SSRF
+        const discordApiBase = 'https://discord.com/api';
+        const guildsUrl = `${discordApiBase}/users/@me/guilds`;
+        const userUrl = `${discordApiBase}/users/@me`;
+        
+        if (!isValidUrl(guildsUrl) || !isValidUrl(userUrl)) {
+            throw new Error('Invalid Discord API URLs');
+        }
+
         const [guildsResponse, userResponse] = await Promise.all([
-            fetch('https://discord.com/api/users/@me/guilds', {
+            fetch(guildsUrl, {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             }),
-            fetch('https://discord.com/api/users/@me', {
+            fetch(userUrl, {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
             })
         ]);
@@ -112,7 +122,8 @@ export async function GET(request: NextRequest) {
 
         // Create a server-side session
         const sessionOptions = await getSessionOptions();
-        const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+        const cookieStore = await cookies();
+        const session = await getIronSession<SessionData>(cookieStore, sessionOptions);
         session.adminId = adminDiscordId;
         session.isLoggedIn = true;
         await session.save();

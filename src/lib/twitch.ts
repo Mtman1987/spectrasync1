@@ -3,6 +3,7 @@
  * and reuse cached app access tokens to minimize auth round-trips.
  */
 import { getRuntimeValue } from "./runtime-config";
+import { sanitizeForLog, isValidUrl } from "./sanitize";
 
 let appAccessToken: { token: string; expires_at: number } | null = null;
 
@@ -37,6 +38,11 @@ async function getTwitchAppAccessToken() {
   }
 
   const url = `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`;
+  
+  if (!isValidUrl(url)) {
+    throw new Error('Invalid Twitch API URL');
+  }
+  
   const response = await fetch(url, { method: 'POST' });
   const data = await response.json();
 
@@ -77,7 +83,7 @@ export async function getTwitchUserByUsername(username: string): Promise<BasicTw
     const data = await response.json();
     return data.data && data.data.length > 0 ? (data.data[0] as BasicTwitchUser) : null;
   } catch (error) {
-    console.error('Error fetching Twitch user by username:', error);
+    console.error(`Error fetching Twitch user by username ${sanitizeForLog(username)}:`, error);
     return null;
   }
 }

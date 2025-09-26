@@ -8,6 +8,7 @@ import { getLiveVipUsers, getTwitchClips } from "@/app/actions";
 import { deleteDiscordMessages, validateBotSecret } from "@/lib/bot-utils";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { getRuntimeValue } from "@/lib/runtime-config";
+import { sanitizeForLog } from "@/lib/sanitize";
 import type { LiveUser } from "@/app/raid-pile/types";
 
 interface EmbedRequestPayload extends Record<string, unknown> {
@@ -352,7 +353,7 @@ async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
 
     throw new Error(`FreeConvert job ${jobId} timed out after ${maxRetries * 5} seconds.`);
   } catch (error) {
-    console.error(`Error creating clip preview for ${vip.displayName}:`, error);
+    console.error(`Error creating clip preview for ${sanitizeForLog(vip.displayName)}:`, error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return { sourceClipUrl: null, gifUrl: null, note: `Failed to generate GIF: ${message}` };
   }

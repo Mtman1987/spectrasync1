@@ -49,7 +49,7 @@ export async function getRaidTrainSchedule(guildId: string, dateKey: string): Pr
         return {};
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const scheduleRef = db.collection(`communities/${guildId}/raidTrain`).doc(dateKey);
         const doc = await scheduleRef.get();
 
@@ -86,7 +86,7 @@ export async function signUpForRaidTrain(guildId: string, dateString: string, ti
         return { success: false, error: "Missing required information for signup." };
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         
         const targetDate = parseDateString(dateString);
         if (isNaN(targetDate.getTime())) {
@@ -206,7 +206,7 @@ export async function giveAwayRaidTrainSpot(guildId: string, dateKey: string, ti
         return { success: false, error: "Missing required information." };
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const scheduleRef = db.collection(`communities/${guildId}/raidTrain`).doc(dateKey);
         
         const emergencySignup: EmergencySignup = {
@@ -241,7 +241,7 @@ export async function getRaidTrainEmergencies(guildId: string): Promise<RaidTrai
         return [];
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const scheduleCollection = db.collection(`communities/${guildId}/raidTrain`);
         const emergencies: RaidTrainEmergency[] = [];
         const today = new Date();
@@ -405,7 +405,7 @@ export async function manualOverrideSlot(
         return { success: false, error: "Missing required information." };
     }
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const scheduleRef = db.collection(`communities/${guildId}/raidTrain`).doc(dateKey);
 
         if (action === 'clear') {

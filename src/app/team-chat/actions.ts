@@ -25,7 +25,7 @@ export async function sendMessage(guildId: string, adminDiscordId: string, messa
     }
 
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         
         // 1. Get admin user info for the message payload using Discord ID
         const { value: adminInfo, error: adminInfoError } = await getAdminInfo(adminDiscordId);
@@ -101,7 +101,7 @@ export async function getChatMessages(guildId: string): Promise<ChatMessage[]> {
     }
     
     try {
-        const db = getAdminDb();
+        const db = await getAdminDb();
         const snapshot = await db.collection(`communities/${guildId}/chat`).orderBy('timestamp', 'asc').limit(100).get();
         return snapshot.docs.map(doc => {
             const data = doc.data();
