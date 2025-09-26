@@ -1,0 +1,16 @@
+runConfig:
+  runtime: nodejs20
+  cpu: 0.5
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 5
+
+build:
+  commands:
+    - cp package-embeds.json package.json
+    - npm install
+    - cp embeds-only.js index.js
+
+env:
+  - variable: NODE_ENV
+    value: production
