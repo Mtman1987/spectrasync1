@@ -9,6 +9,7 @@ runConfig:
 build:
   commands:
     - npm ci
+    - rm -rf .next
     - npm run build
   
 env:
