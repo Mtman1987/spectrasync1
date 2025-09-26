@@ -18,6 +18,7 @@ export default function CommunitySpotlightClient() {
           </p>
         </div>
         <UserContentGenerator />
+        <ContentHistory />
       </div>
     </AppLayout>
   );

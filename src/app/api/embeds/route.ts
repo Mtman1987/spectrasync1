@@ -24,8 +24,6 @@ interface EmbedRequestPayload extends Record<string, unknown> {
   dispatch?: boolean;
 }
 
-type EmbedResponsePayload = Record<string, unknown> | null;
-
 interface VipEmbedResponse extends Record<string, unknown> {
   feature: string;
   guildId: string;

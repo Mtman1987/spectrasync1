@@ -72,6 +72,23 @@ export function UserContentGenerator() {
     }
   }
 
+  function handleSaveToHistory() {
+    if (result?.showcasePost) {
+      const storedHistory = localStorage.getItem("contentHistory");
+      const history = storedHistory ? JSON.parse(storedHistory) : [];
+      
+      const newHistory = [result.showcasePost, ...history].slice(0, MAX_HISTORY);
+
+      localStorage.setItem("contentHistory", JSON.stringify(newHistory));
+      window.dispatchEvent(new Event("storage")); // Manually trigger storage event
+
+      toast({
+        title: "Saved!",
+        description: "Post saved to your history.",
+      });
+    }
+  }
+
   return (
     <div className="grid gap-8 md:grid-cols-2">
       <Card>
@@ -114,12 +131,47 @@ export function UserContentGenerator() {
         </CardContent>
       </Card>
       <Card className="flex flex-col">
+import { Bookmark } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+const MAX_HISTORY = 5;
+
+// ... (rest of the component is the same)
+
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="font-headline">Generated Showcase Post</CardTitle>
           {result && (
-            <Button variant="ghost" size="icon" onClick={handleCopy}>
-              <Copy className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={handleSaveToHistory}>
+                      <Bookmark className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Save to History</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={handleCopy}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Copy to Clipboard</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           )}
         </CardHeader>
         <CardContent className="flex-1">
