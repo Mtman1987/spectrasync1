@@ -153,9 +153,8 @@ async function resolveServiceAccount(): Promise<ServiceAccountConfig | null> {
 }
 
 async function ensureAdminApp(): Promise<void> {
-  // Skip initialization during build or static generation
-  if (process.env.NEXT_PHASE === 'phase-production-build' || 
-      process.env.NODE_ENV === 'production' && !process.env.FIREBASE_PROJECT_ID) {
+  // Skip initialization only during build phase
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
     throw new Error('Firebase Admin not available during build');
   }
 
@@ -197,9 +196,8 @@ async function ensureAdminApp(): Promise<void> {
 }
 
 export async function getAdminDb(): Promise<Firestore> {
-  // Prevent Firebase calls during build/static generation
-  if (process.env.NEXT_PHASE === 'phase-production-build' || 
-      (typeof window === 'undefined' && process.env.NODE_ENV === 'production' && !process.env.FIREBASE_PROJECT_ID)) {
+  // Only prevent Firebase calls during build phase, not production runtime
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
     throw new Error('Firebase Admin not available during build');
   }
 

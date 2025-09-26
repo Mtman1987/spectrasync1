@@ -8,9 +8,8 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
     return cached;
   }
 
-  // Skip Firebase calls during build or when no credentials available
-  if (process.env.NEXT_PHASE === 'phase-production-build' || 
-      (process.env.NODE_ENV === 'production' && !process.env.FIREBASE_PROJECT_ID)) {
+  // Skip Firebase calls only during build phase
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
     return {};
   }
 
