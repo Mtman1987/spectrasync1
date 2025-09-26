@@ -5,6 +5,13 @@ const nextConfig: NextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['firebase-admin']
   },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': require('path').resolve(__dirname, 'src'),
+    };
+    return config;
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
