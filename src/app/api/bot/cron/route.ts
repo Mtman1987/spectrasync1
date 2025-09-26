@@ -1,13 +1,10 @@
 // src/app/api/bot/cron/route.ts
 import { NextResponse, type NextRequest } from 'next/server';
-import { getAdminDb } from '@/lib/firebase-admin';
 import { getTwitchStreams } from '@/app/actions';
 import { postToWebhook, editWebhookMessage, deleteWebhookMessage } from '@/bot/discord-actions';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { generateVipShoutout } from '@/ai/flows/generate-vip-shoutout';
 import { getUsersFromDb } from '@/app/actions';
-
-const db = getAdminDb();
 
 // --- Types ---
 type LiveUser = {
@@ -27,6 +24,8 @@ type LiveUser = {
 // --- Firestore Helpers ---
 
 async function getVipTwitchIds(guildId: string): Promise<string[]> {
+    const { getAdminDb } = await import('@/lib/firebase-admin');
+    const db = await getAdminDb();
     const snapshot = await db.collection(`communities/${guildId}/users`).where('isVip', '==', true).get();
     if (snapshot.empty) return [];
     return snapshot.docs.map(doc => doc.data().twitchInfo?.id).filter(Boolean);
@@ -71,6 +70,8 @@ async function processVip(guildId: string, vip: LiveUser, webhookUrl: string, ex
                 processedVip.vipMessage = shoutoutResult.shoutoutMessage;
 
                 // Update the database with the new message and timestamp
+                const { getAdminDb } = await import('@/lib/firebase-admin');
+                const db = await getAdminDb();
                 const userRef = db.collection(`communities/${guildId}/users`).doc(vip.discordId);
                 await userRef.update({
                     vipMessage: processedVip.vipMessage,
@@ -87,6 +88,8 @@ async function processVip(guildId: string, vip: LiveUser, webhookUrl: string, ex
 
         // GIF Selection
         if (vip.discordId) {
+            const { getAdminDb } = await import('@/lib/firebase-admin');
+            const db = await getAdminDb();
             const gifsSnapshot = await db.collection(`communities/${guildId}/users/${vip.discordId}/generatedGifs`).get();
             if (!gifsSnapshot.empty) {
                 const gifs = gifsSnapshot.docs.map(doc => doc.data().gifUrl);
@@ -111,6 +114,8 @@ async function processVip(guildId: string, vip: LiveUser, webhookUrl: string, ex
 
 
 async function runVipCheckForGuild(guildId: string) {
+    const { getAdminDb } = await import('@/lib/firebase-admin');
+    const db = await getAdminDb();
     const settingsDoc = await db.collection(`communities/${guildId}/settings`).doc('vipLive').get();
     if (!settingsDoc.exists) {
         console.log(`[Cron] No VIP config for guild ${guildId}. Skipping.`);
@@ -184,6 +189,8 @@ async function runVipCheckForGuild(guildId: string) {
  */
 export async function GET(request: NextRequest) {
   try {
+    const { getAdminDb } = await import('@/lib/firebase-admin');
+    const db = await getAdminDb();
     const communitiesSnapshot = await db.collection('communities').get();
     if (communitiesSnapshot.empty) {
       return NextResponse.json({ success: true, message: 'No communities to process.' });

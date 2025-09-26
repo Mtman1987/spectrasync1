@@ -1,8 +1,13 @@
 'use server';
 
-import { getAdminDb } from '@/lib/firebase-admin';
 import { getRuntimeValue } from '@/lib/runtime-config';
 import { FieldValue } from 'firebase-admin/firestore';
+
+// Helper to get Firebase admin DB with dynamic import
+async function getDb() {
+  const { getAdminDb } = await import('@/lib/firebase-admin');
+  return getAdminDb();
+}
 import type { DocumentReference, Timestamp } from 'firebase-admin/firestore';
 import type { LiveUser } from './raid-pile/types';
 import { getSettings } from './settings/actions';
