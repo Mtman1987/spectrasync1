@@ -5,7 +5,6 @@ runConfig:
   minInstances: 0
   maxInstances: 10
   concurrency: 100
-  invoker: public
 
 build:
   commands:
