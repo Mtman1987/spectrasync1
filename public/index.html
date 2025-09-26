@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cosmic Raid</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { 
+            margin: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .container { text-align: center; max-width: 600px; padding: 2rem; }
+        h1 { font-size: 3rem; margin-bottom: 1rem; }
+        p { font-size: 1.2rem; margin-bottom: 2rem; opacity: 0.9; }
+        .btn { 
+            display: inline-block; 
+            background: rgba(255,255,255,0.2); 
+            padding: 12px 24px; 
+            border-radius: 8px; 
+            text-decoration: none; 
+            color: white; 
+            border: 1px solid rgba(255,255,255,0.3);
+            margin: 0.5rem;
+        }
+        .btn:hover { background: rgba(255,255,255,0.3); }
+        .status { 
+            background: rgba(255,255,255,0.1); 
+            padding: 1rem; 
+            border-radius: 8px; 
+            margin-top: 2rem; 
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Cosmic Raid</h1>
+        <p>Your Twitch community management platform is starting up...</p>
+        
+        <div class="status">
+            <strong>Status:</strong> Deployment in progress<br>
+            <small>The full application will be available shortly. Please check back in a few minutes.</small>
+        </div>
+        
+        <div style="margin-top: 2rem;">
+            <a href="javascript:location.reload()" class="btn">🔄 Refresh</a>
+            <a href="https://github.com/Mtman1987/spectrasync1" class="btn">📖 Documentation</a>
+        </div>
+        
+        <script>
+            // Auto-refresh every 30 seconds
+            setTimeout(() => location.reload(), 30000);
+        </script>
+    </div>
+</body>
+</html>

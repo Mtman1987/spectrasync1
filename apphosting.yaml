@@ -1,5 +1,6 @@
 runConfig:
   runtime: nodejs20
+  command: npm run start -- -p $PORT
   cpu: 1
   memoryMiB: 1024
   minInstances: 0
@@ -9,7 +10,6 @@ runConfig:
 build:
   commands:
     - npm ci
-    - rm -rf .next
     - npm run build
   
 env:
