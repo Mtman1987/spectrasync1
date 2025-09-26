@@ -1,5 +1,3 @@
-import { getAdminDb } from "./firebase-admin";
-
 let cached: Record<string, unknown> | null = null;
 let lastFetched = 0;
 const CACHE_TTL_MS = 30_000; // 30 seconds cache
@@ -17,6 +15,7 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
   }
 
   try {
+    const { getAdminDb } = await import('./firebase-admin');
     const db = await getAdminDb();
     const ref = db.collection("app_settings").doc("runtime");
     const doc = await ref.get();

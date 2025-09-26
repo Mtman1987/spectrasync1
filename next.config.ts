@@ -5,7 +5,8 @@ import path from 'path';
 const nextConfig: NextConfig = {
   output: 'standalone',
   serverExternalPackages: ['firebase-admin'],
-  webpack: (config) => {
+
+  webpack: (config, { isServer, dev }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, 'src'),
@@ -14,6 +15,13 @@ const nextConfig: NextConfig = {
       /Critical dependency: the request of a dependency is an expression/,
       /require\.extensions is not supported by webpack/,
     ];
+    
+    // Prevent Firebase from being bundled during build
+    if (isServer && !dev) {
+      config.externals = config.externals || [];
+      config.externals.push('firebase-admin');
+    }
+    
     return config;
   },
   typescript: {

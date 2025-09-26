@@ -2,8 +2,7 @@ import path from "node:path"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { randomUUID } from "node:crypto"
 
-import { getAdminApp } from "@/lib/firebase-admin"
-import { getStorage } from "firebase-admin/storage"
+
 
 export interface ConvertMp4ToGifOptions {
   /** Target width for the generated GIF. Defaults to 240 pixels. */
@@ -86,7 +85,9 @@ async function requestShotstackConversion(payload: Record<string, unknown>) {
 
 async function uploadToStorage(gifBuffer: Buffer, destinationPath: string): Promise<{ storagePath: string; downloadUrl: string | null }> {
   try {
-    const app = getAdminApp()
+    const { getAdminApp } = await import('@/lib/firebase-admin');
+    const { getStorage } = await import('firebase-admin/storage');
+    const app = await getAdminApp()
     const bucketName = process.env.FIREBASE_STORAGE_BUCKET ?? app.options.storageBucket
     if (!bucketName) {
       throw new Error('No Firebase storage bucket configured')

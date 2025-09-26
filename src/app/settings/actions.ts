@@ -1,7 +1,6 @@
 // src/app/settings/actions.ts
 "use server";
 
-import { getAdminDb } from "@/lib/firebase-admin";
 import type { ConvertMp4ToGifOptions } from "@/lib/convertVideoToGif";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -84,6 +83,7 @@ export async function saveSettings(guildId: string, settings: Partial<CommunityS
         return { success: false, error: "Community ID is required." };
     }
     try {
+        const { getAdminDb } = await import('@/lib/firebase-admin');
         const db = await getAdminDb();
         const settingsRef = db.collection('communities').doc(guildId).collection('settings').doc('points');
         await settingsRef.set(settings, { merge: true });
@@ -100,6 +100,7 @@ export async function getSettings(guildId: string): Promise<CommunitySettings> {
         return defaultSettings;
     }
     try {
+        const { getAdminDb } = await import('@/lib/firebase-admin');
         const db = await getAdminDb();
         const doc = await db.collection('communities').doc(guildId).collection('settings').doc('points').get();
 
@@ -122,6 +123,7 @@ export async function addWebhook(guildId: string, name: string, url: string) {
         return { success: false, error: "Missing required fields." };
     }
     try {
+        const { getAdminDb } = await import('@/lib/firebase-admin');
         const db = await getAdminDb();
         const webhooksCollection = db.collection(`communities/${guildId}/webhooks`);
         await webhooksCollection.add({
@@ -139,6 +141,7 @@ export async function addWebhook(guildId: string, name: string, url: string) {
 export async function getWebhooks(guildId: string): Promise<Webhook[]> {
     if (!guildId) return [];
     try {
+        const { getAdminDb } = await import('@/lib/firebase-admin');
         const db = await getAdminDb();
         const snapshot = await db.collection(`communities/${guildId}/webhooks`).get();
         if (snapshot.empty) return [];
@@ -154,6 +157,7 @@ export async function updateWebhookStatus(guildId: string, webhookId: string, en
         return { success: false, error: "Missing required fields." };
     }
     try {
+        const { getAdminDb } = await import('@/lib/firebase-admin');
         const db = await getAdminDb();
         await db.collection(`communities/${guildId}/webhooks`).doc(webhookId).update({ enabled });
         return { success: true };
@@ -168,6 +172,7 @@ export async function deleteWebhook(guildId: string, webhookId: string) {
         return { success: false, error: "Missing required fields." };
     }
     try {
+        const { getAdminDb } = await import('@/lib/firebase-admin');
         const db = await getAdminDb();
         await db.collection(`communities/${guildId}/webhooks`).doc(webhookId).delete();
         return { success: true };
@@ -210,6 +215,7 @@ export async function testGifWebhook({
         return { success: false, error: "Community, webhook, and MP4 URL are required." };
     }
 
+    const { getAdminDb } = await import('@/lib/firebase-admin');
     const db = await getAdminDb();
     const webhookSnap = await db.collection(`communities/${guildId}/webhooks`).doc(webhookId).get();
     if (!webhookSnap.exists) {
