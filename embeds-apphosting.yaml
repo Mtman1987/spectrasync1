@@ -7,6 +7,7 @@ runConfig:
 
 build:
   commands:
+    - rm -f package.json package-lock.json
     - cp package-embeds.json package.json
     - npm install --production
     - cp embeds-only.js server.js
