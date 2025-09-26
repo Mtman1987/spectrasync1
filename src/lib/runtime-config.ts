@@ -26,8 +26,14 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
     lastFetched = Date.now();
     return cached || {};
   } catch (error) {
-    console.error("Failed to fetch runtime config:", error);
-    return cached ?? {};
+    console.warn("Runtime config unavailable, using environment variables:", error.message);
+    // Fallback to process.env for critical values
+    cached = {
+      BOT_SECRET_KEY: process.env.BOT_SECRET_KEY,
+      DISCORD_BOT_TOKEN: process.env.DISCORD_BOT_TOKEN,
+      FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID
+    };
+    return cached;
   }
 }
 

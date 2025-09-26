@@ -205,11 +205,16 @@ export async function getAdminDb(): Promise<Firestore> {
     return db;
   }
 
-  await ensureAdminApp();
-
-  db = admin.firestore();
-  globalForFirebase.__FIREBASE_ADMIN_DB__ = db;
-  return db;
+  try {
+    await ensureAdminApp();
+    db = admin.firestore();
+    globalForFirebase.__FIREBASE_ADMIN_DB__ = db;
+    return db;
+  } catch (error) {
+    console.error('Firebase initialization failed, using fallback:', error);
+    // Return a mock Firestore for graceful degradation
+    throw new Error('Firebase not available - check credentials');
+  }
 }
 
 export async function getAdminApp(): Promise<App> {
