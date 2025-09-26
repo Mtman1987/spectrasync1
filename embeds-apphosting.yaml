@@ -8,9 +8,11 @@ runConfig:
 build:
   commands:
     - cp package-embeds.json package.json
-    - npm install
-    - cp embeds-only.js index.js
+    - npm install --production
+    - cp embeds-only.js server.js
 
 env:
   - variable: NODE_ENV
     value: production
+  - variable: PORT
+    value: "8080"

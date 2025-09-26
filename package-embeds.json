@@ -1,9 +1,9 @@
 {
   "name": "cosmic-raid-embeds",
   "version": "1.0.0",
-  "main": "embeds-only.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node embeds-only.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2"
