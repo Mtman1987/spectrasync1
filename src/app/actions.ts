@@ -2,12 +2,6 @@
 
 import { getRuntimeValue } from '@/lib/runtime-config';
 import { FieldValue } from 'firebase-admin/firestore';
-
-// Helper to get Firebase admin DB with dynamic import
-async function getDb() {
-  const { getAdminDb } = await import('@/lib/firebase-admin');
-  return getAdminDb();
-}
 import type { DocumentReference, Timestamp } from 'firebase-admin/firestore';
 import type { LiveUser } from './raid-pile/types';
 import { getSettings } from './settings/actions';
@@ -17,6 +11,12 @@ import { cookies } from 'next/headers';
 import { getSessionOptions, type SessionData } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { sanitizeForLog } from '@/lib/sanitize';
+
+// Helper to get Firebase admin DB with dynamic import
+async function getDb() {
+  const { getAdminDb } = await import('@/lib/firebase-admin');
+  return getAdminDb();
+}
 
 const DISCORD_API_BASE = 'https://discord.com/api/v10';
 
@@ -113,7 +113,7 @@ export async function saveUserInfoByDiscordId(guildId: string, discordId: string
     return { success: false, error: "Community ID and Discord User ID are required." };
   }
   try {
-    const adminDb = await getAdminDb();
+    const adminDb = await getDb();
     const userRef = adminDb.collection('communities').doc(guildId).collection('users').doc(discordId);
     await userRef.set(data, { merge: true });
     console.log(`User info saved for user ${sanitizeForLog(discordId)} in guild ${sanitizeForLog(guildId)}`);
@@ -133,7 +133,7 @@ export async function getUserInfoByDiscordId(guildId: string, discordId: string)
         return { value: null, error: "Community ID and Discord User ID are required." };
     }
     try {
-        const adminDb = await getAdminDb();
+        const adminDb = await getDb();
         const docRef = adminDb.collection('communities').doc(guildId).collection('users').doc(discordId);
         const doc = await docRef.get();
 
@@ -163,7 +163,7 @@ export async function saveAdminInfo(discordId: string, data: any) {
     return { success: false, error: "Discord ID is required." };
   }
   try {
-    const adminDb = await getAdminDb();
+    const adminDb = await getDb();
     const adminRef = adminDb.collection('admins').doc(discordId);
     await adminRef.set(data, { merge: true });
     return { success: true };
@@ -181,7 +181,7 @@ export async function getAdminInfo(discordId: string): Promise<{ value: any | nu
     return { value: null, error: "Discord ID is required." };
   }
   try {
-    const adminDb = await getAdminDb();
+    const adminDb = await getDb();
     const docRef = adminDb.collection('admins').doc(discordId);
     const doc = await docRef.get();
 
@@ -233,7 +233,7 @@ export async function saveUserTwitchInfo(guildId: string, discordId: string, dis
     }
     
     try {
-        const db = await getAdminDb();
+        const db = await getDb();
         const twitchUser = await getTwitchUserByUsername(twitchUsername);
 
         if (!twitchUser) {
@@ -322,7 +322,7 @@ export async function getLiveUsersFromTwitch(
 
 export async function getUsersFromDb(guildId: string, userIds: string[]): Promise<LiveUser[]> {
     if (userIds.length === 0) return [];
-    const db = await getAdminDb();
+    const db = await getDb();
     const usersCollection = db.collection(`communities/${guildId}/users`);
     
     // Firestore 'in' queries are limited to 30 elements. We might need to chunk this.
@@ -353,7 +353,7 @@ export async function getLiveRaidPiles(guildId: string) {
         return [];
     }
     try {
-        const db = await getAdminDb();
+        const db = await getDb();
         const usersSnapshot = await db.collection(`communities/${guildId}/users`).where("inPile", "==", true).get();
         
         if (usersSnapshot.empty) {
@@ -476,7 +476,7 @@ export async function getLiveCommunityPoolUsers(guildId: string): Promise<LiveUs
         return [];
     }
     try {
-        const db = await getAdminDb();
+        const db = await getDb();
         const usersSnapshot = await db.collection(`communities/${guildId}/users`).where("inCommunityPool", "==", true).get();
 
         if (usersSnapshot.empty) {
@@ -509,7 +509,7 @@ export async function getLiveVipUsers(guildId: string): Promise<LiveUser[]> {
     }
     try {
         console.log(`[DEBUG] Getting live VIPs for guild: ${guildId}`);
-        const db = await getAdminDb();
+        const db = await getDb();
         const usersSnapshot = await db
             .collection(`communities/${guildId}/users`)
             .where("isVip", "==", true)
@@ -596,7 +596,7 @@ export async function joinPile(guildId: string, discordId: string) {
   if (!guildId) return { success: false, error: "Community ID is missing." };
   if (!discordId) return { success: false, error: "User info is missing." };
   try {
-    const db = await getAdminDb();
+    const db = await getDb();
     const userRef = db.collection(`communities/${guildId}/users`).doc(discordId);
 
     await db.runTransaction(async (transaction) => {
@@ -622,7 +622,7 @@ export async function joinCommunityPool(guildId: string, discordId: string) {
   if (!guildId) return { success: false, error: "Community ID is missing." };
   if (!discordId) return { success: false, error: "User info is missing." };
   try {
-    const db = await getAdminDb();
+    const db = await getDb();
     const userRef = db.collection(`communities/${guildId}/users`).doc(discordId);
 
      await db.runTransaction(async (transaction) => {
@@ -646,7 +646,7 @@ export async function leavePile(guildId: string, userId: string) {
     if (!guildId) return { success: false, error: "Community ID is missing." };
     if (!userId) return { success: false, error: "User ID is missing." };
     try {
-        const db = await getAdminDb();
+        const db = await getDb();
         const userRef = db.collection(`communities/${guildId}/users`).doc(userId);
         
         await userRef.update({ inPile: false });
@@ -664,7 +664,7 @@ export async function addVip(guildId: string, twitchUsername: string, vipMessage
         return { success: false, error: "Community ID and Twitch Username are required." };
     }
     try {
-        const db = await getAdminDb();
+        const db = await getDb();
         const twitchUser = await getTwitchUserByUsername(twitchUsername);
 
         if (!twitchUser) {
@@ -704,7 +704,7 @@ export async function createAndAddVip(guildId: string, discordId: string, twitch
         return { success: false, error: "Community ID, Discord ID, and Twitch Username are required." };
     }
     try {
-        const db = await getAdminDb();
+        const db = await getDb();
         const twitchUser = await getTwitchUserByUsername(twitchUsername);
 
         if (!twitchUser) {
@@ -746,7 +746,7 @@ export async function removeVip(guildId: string, discordId: string) {
         return { success: false, error: "Community ID and Discord ID are required." };
     }
     try {
-        const db = await getAdminDb();
+        const db = await getDb();
         const userRef = db.collection(`communities/${guildId}/users`).doc(discordId);
 
         const userDoc = await userRef.get();
@@ -778,7 +778,7 @@ export async function updateVip(guildId: string, discordId: string, vipMessage: 
         return { success: false, error: "Community ID and Discord ID are required." };
     }
     try {
-        const db = await getAdminDb();
+        const db = await getDb();
         const userRef = db.collection(`communities/${guildId}/users`).doc(discordId);
         
         const userDoc = await userRef.get();
@@ -807,7 +807,7 @@ export async function addPointsToAdmin(guildId: string, adminDiscordId: string, 
     return { success: false, error: "Community ID and Admin ID are required." };
   }
   try {
-    const db = await getAdminDb();
+    const db = await getDb();
     // The admin's community-specific user data is in the `users` collection for that guild, keyed by their discord ID.
     const userRef = db.collection('communities').doc(guildId).collection('users').doc(adminDiscordId);
     
