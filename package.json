@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm run dev:next",
+    "dev": "next dev --port 9002 --hostname 0.0.0.0",
     "dev:next": "next dev --port 9002 --hostname 0.0.0.0",
     "dev:web": "npm run dev:next",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
