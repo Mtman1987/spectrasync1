@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { homedir } from "node:os";
 
+type FirebaseCredentialState = "unknown" | "available" | "unavailable";
+
 let cached: Record<string, unknown> | null = null;
 let lastFetched = 0;
 let isInitializing = false;
@@ -9,6 +11,7 @@ const CACHE_TTL_MS = 30_000; // 30 seconds cache
 
 let missingCredentialWarningShown = false;
 let hasLoggedLocalConfigSource = false;
+let firebaseCredentialState: FirebaseCredentialState = "unknown";
 
 const ENV_FALLBACK_KEYS = [
   "BOT_SECRET_KEY",
@@ -36,6 +39,18 @@ const ADC_FILENAME = "application_default_credentials.json";
 
 let localConfigCache: Record<string, unknown> | null = null;
 let localConfigResolved = false;
+
+export function markFirebaseCredentialsAvailable(): void {
+  firebaseCredentialState = "available";
+}
+
+export function markFirebaseCredentialsUnavailable(): void {
+  firebaseCredentialState = "unavailable";
+}
+
+export function getFirebaseCredentialState(): FirebaseCredentialState {
+  return firebaseCredentialState;
+}
 
 function loadLocalRuntimeConfig(): Record<string, unknown> | null {
   if (localConfigResolved) {
@@ -95,11 +110,21 @@ function buildEnvFallback(): Record<string, unknown> {
 }
 
 export function hasFirebaseCredentials(): boolean {
+  if (firebaseCredentialState === "available") {
+    return true;
+  }
+
+  if (firebaseCredentialState === "unavailable") {
+    return false;
+  }
+
   if (process.env.FIREBASE_RUNTIME_FORCE === "1") {
+    markFirebaseCredentialsAvailable();
     return true;
   }
 
   if (process.env.FIREBASE_RUNTIME_DISABLED === "1") {
+    markFirebaseCredentialsUnavailable();
     return false;
   }
 
@@ -111,6 +136,7 @@ export function hasFirebaseCredentials(): boolean {
   );
 
   if (hasInlineCredentials) {
+    markFirebaseCredentialsAvailable();
     return true;
   }
 
@@ -119,6 +145,7 @@ export function hasFirebaseCredentials(): boolean {
   );
 
   if (hasCredentialPath) {
+    markFirebaseCredentialsAvailable();
     return true;
   }
 
@@ -132,6 +159,7 @@ export function hasFirebaseCredentials(): boolean {
   );
 
   if (runningOnGoogleCloud) {
+    markFirebaseCredentialsAvailable();
     return true;
   }
 
@@ -155,6 +183,7 @@ export function hasFirebaseCredentials(): boolean {
 
   for (const candidate of adcCandidatePaths) {
     if (candidate && existsSync(candidate)) {
+      markFirebaseCredentialsAvailable();
       return true;
     }
   }
@@ -173,7 +202,7 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
     return cached || buildEnvFallback();
   }
 
-  if (!hasFirebaseCredentials()) {
+  if (firebaseCredentialState === "unavailable" && !force) {
     if (!missingCredentialWarningShown) {
       console.info(
         "Firebase credentials not detected. Skipping runtime config fetch and using environment variables instead.",
@@ -183,6 +212,21 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
     cached = buildEnvFallback();
     lastFetched = Date.now();
     return cached;
+  }
+
+  if (force && firebaseCredentialState === "unavailable") {
+    firebaseCredentialState = "unknown";
+  }
+
+  const detectedCredentials = hasFirebaseCredentials();
+
+  if (!detectedCredentials && firebaseCredentialState !== "available") {
+    if (!missingCredentialWarningShown) {
+      console.info(
+        "Firebase credentials not detected. Attempting runtime config fetch; will fall back to environment variables on failure.",
+      );
+      missingCredentialWarningShown = true;
+    }
   }
 
   isInitializing = true;
@@ -197,9 +241,11 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
       cached = doc.data() as Record<string, unknown>;
     }
     lastFetched = Date.now();
+    markFirebaseCredentialsAvailable();
     return cached || {};
   } catch (error) {
     console.warn("Runtime config unavailable, using environment variables:", error?.message || error);
+    markFirebaseCredentialsUnavailable();
     // Fallback to process.env for critical values
     cached = buildEnvFallback();
     lastFetched = Date.now();

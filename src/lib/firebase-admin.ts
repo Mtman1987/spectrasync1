@@ -2,7 +2,11 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 
 import admin from "firebase-admin";
-import { getRuntimeValue, hasFirebaseCredentials } from "./runtime-config";
+import {
+  getFirebaseCredentialState,
+  markFirebaseCredentialsAvailable,
+  markFirebaseCredentialsUnavailable,
+} from "./runtime-config";
 import type { App, AppOptions } from "firebase-admin/app";
 import type { Firestore } from "firebase-admin/firestore";
 
@@ -191,7 +195,7 @@ async function ensureAdminApp(): Promise<void> {
     throw new Error('Firebase Admin not available during build');
   }
 
-  if (!hasFirebaseCredentials()) {
+  if (getFirebaseCredentialState() === "unavailable") {
     throw new FirebaseUnavailableError();
   }
 
@@ -226,8 +230,12 @@ async function ensureAdminApp(): Promise<void> {
 
   try {
     admin.initializeApp(appOptions);
+    markFirebaseCredentialsAvailable();
   } catch (error) {
     console.error("Failed to initialize Firebase Admin SDK.", error);
+    if (isFirebaseUnavailableError(error)) {
+      markFirebaseCredentialsUnavailable();
+    }
     throw error;
   }
 }
@@ -245,14 +253,17 @@ export async function getAdminDb(): Promise<Firestore> {
   try {
     await ensureAdminApp();
     db = admin.firestore();
+    markFirebaseCredentialsAvailable();
     globalForFirebase.__FIREBASE_ADMIN_DB__ = db;
     return db;
   } catch (error) {
     if (isFirebaseUnavailableError(error)) {
+      markFirebaseCredentialsUnavailable();
       throw error instanceof Error ? error : new FirebaseUnavailableError();
     }
 
     console.error('Firebase initialization failed, using fallback:', error);
+    markFirebaseCredentialsUnavailable();
     throw new FirebaseUnavailableError(
       error instanceof Error ? error.message : 'Firebase not available - check credentials',
     );

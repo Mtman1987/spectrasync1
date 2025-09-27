@@ -1,6 +1,6 @@
 'use server';
 
-import { getRuntimeValue, hasFirebaseCredentials } from '@/lib/runtime-config';
+import { getRuntimeValue } from '@/lib/runtime-config';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { DocumentReference, Timestamp } from 'firebase-admin/firestore';
 import type { LiveUser } from './raid-pile/types';
@@ -193,12 +193,6 @@ export async function getAdminInfo(discordId: string): Promise<{ value: any | nu
   }
   const fallbackProfile = getFallbackAdminProfile(discordId);
 
-  if (!hasFirebaseCredentials()) {
-    if (fallbackProfile) {
-      return { value: fallbackProfile };
-    }
-    return { value: null };
-  }
   try {
     const adminDb = await getDb();
     const docRef = adminDb.collection('admins').doc(discordId);
