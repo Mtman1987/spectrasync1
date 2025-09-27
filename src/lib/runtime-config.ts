@@ -1,3 +1,5 @@
+'use server';
+
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { homedir } from "node:os";

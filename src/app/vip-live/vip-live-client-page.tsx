@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
@@ -17,9 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LiveUser } from "../raid-pile/types";
-import { sendVipLiveNotification } from "./actions";
 import { useToast } from "@/hooks/use-toast";
-import { addVip, removeVip, createAndAddVip, updateVip } from "@/app/actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,9 +41,16 @@ interface VipLiveClientPageProps {
   parentDomain: string;
   guildId: string;
   onVipChanged?: () => void;
+  serverActions: {
+      sendVipLiveNotification: (guildId: string, vip: any) => Promise<{ success: boolean; message?: string; error?: string }>;
+      addVip: (guildId: string, twitchUsername: string, vipMessage: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+      removeVip: (guildId: string, discordId: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+      createAndAddVip: (guildId: string, discordId: string, twitchUsername: string, vipMessage: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+      updateVip: (guildId: string, discordId: string, vipMessage: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  }
 }
 
-function AddVipForm({ guildId, onVipAdded }: { guildId: string, onVipAdded: () => void }) {
+function AddVipForm({ guildId, onVipAdded, serverActions }: { guildId: string, onVipAdded: () => void, serverActions: VipLiveClientPageProps['serverActions'] }) {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
     const [username, setUsername] = useState("");
@@ -63,7 +67,7 @@ function AddVipForm({ guildId, onVipAdded }: { guildId: string, onVipAdded: () =
             return;
         }
         startTransition(async () => {
-            const result = await addVip(guildId, username, message);
+            const result = await serverActions.addVip(guildId, username, message);
             if (result.success) {
                 toast({ title: "VIP Added!", description: result.message });
                 setUsername("");
@@ -106,7 +110,7 @@ function AddVipForm({ guildId, onVipAdded }: { guildId: string, onVipAdded: () =
     );
 }
 
-function CreateVipForm({ guildId, onVipAdded }: { guildId: string, onVipAdded: () => void }) {
+function CreateVipForm({ guildId, onVipAdded, serverActions }: { guildId: string, onVipAdded: () => void, serverActions: VipLiveClientPageProps['serverActions'] }) {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
     const [discordId, setDiscordId] = useState("");
@@ -120,7 +124,7 @@ function CreateVipForm({ guildId, onVipAdded }: { guildId: string, onVipAdded: (
             return;
         }
         startTransition(async () => {
-            const result = await createAndAddVip(guildId, discordId, twitchUsername, message);
+            const result = await serverActions.createAndAddVip(guildId, discordId, twitchUsername, message);
             if (result.success) {
                 toast({ title: "VIP Created!", description: result.message });
                 setDiscordId("");
@@ -169,7 +173,7 @@ function CreateVipForm({ guildId, onVipAdded }: { guildId: string, onVipAdded: (
     );
 }
 
-function EditVipForm({ guildId, vip, onVipUpdated }: { guildId: string, vip: any, onVipUpdated: () => void }) {
+function EditVipForm({ guildId, vip, onVipUpdated, serverActions }: { guildId: string, vip: any, onVipUpdated: () => void, serverActions: VipLiveClientPageProps['serverActions'] }) {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
     const [message, setMessage] = useState(vip.vipMessage || "");
@@ -181,7 +185,7 @@ function EditVipForm({ guildId, vip, onVipUpdated }: { guildId: string, vip: any
             return;
         }
         startTransition(async () => {
-            const result = await updateVip(guildId, vip.id, message);
+            const result = await serverActions.updateVip(guildId, vip.id, message);
             if (result.success) {
                 toast({ title: "VIP Updated!", description: result.message });
                 setIsOpen(false);
@@ -227,20 +231,12 @@ export function VipLiveClientPage({
   isLoading,
   parentDomain,
   guildId,
-  onVipChanged
+  onVipChanged,
+  serverActions,
 }: VipLiveClientPageProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
-  const [embedParentDomain, setEmbedParentDomain] = useState(parentDomain);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setEmbedParentDomain(parentDomain || window.location.hostname);
-    } else {
-      setEmbedParentDomain(parentDomain);
-    }
-  }, [parentDomain]);
 
   const handleVipListChanged = () => {
     if (onVipChanged) {
@@ -250,14 +246,13 @@ export function VipLiveClientPage({
     }
   };
 
-  
   const liveVipIds = new Set(liveVips.map(v => v.twitchId));
 
   const handleSendNotification = (vip: LiveUser) => {
     if (!guildId) return;
 
     startTransition(async () => {
-        const result = await sendVipLiveNotification(guildId, vip);
+        const result = await serverActions.sendVipLiveNotification(guildId, vip);
         if(result.success) {
             toast({
                 title: "Notification Sent!",
@@ -276,7 +271,7 @@ export function VipLiveClientPage({
   const handleRemoveVip = (discordId: string) => {
       if (!guildId) return;
       startTransition(async () => {
-          const result = await removeVip(guildId, discordId);
+          const result = await serverActions.removeVip(guildId, discordId);
           if (result.success) {
               toast({ title: "VIP Removed", description: result.message });
               handleVipListChanged();
@@ -313,9 +308,9 @@ export function VipLiveClientPage({
             <Card key={vip.twitchId} className="bg-gradient-to-tr from-yellow-400/10 to-card border-yellow-400/20 overflow-hidden">
                 <div className="grid md:grid-cols-3">
                      <div className="md:col-span-2 aspect-video bg-muted">
-                        {embedParentDomain && (
+                        {parentDomain && (
                             <iframe
-                                src={`https://player.twitch.tv/?channel=${vip.twitchLogin.toLowerCase()}&parent=${embedParentDomain}&autoplay=true&muted=true`}
+                                src={`https://player.twitch.tv/?channel=${vip.twitchLogin.toLowerCase()}&parent=${parentDomain}&autoplay=true&muted=true`}
                                 height="100%"
                                 width="100%"
                                 allowFullScreen={true}
@@ -395,7 +390,7 @@ export function VipLiveClientPage({
                                         </Badge>
                                     </div>
                                     <div className="flex items-center gap-2 mt-4">
-                                        <EditVipForm guildId={guildId} vip={vip} onVipUpdated={handleVipListChanged} />
+                                        <EditVipForm guildId={guildId} vip={vip} onVipUpdated={handleVipListChanged} serverActions={serverActions} />
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
                                                 <Button variant="destructive" size="sm" className="w-full" disabled={isPending}>
@@ -431,11 +426,10 @@ export function VipLiveClientPage({
                 )}
             </CardContent>
             <CardFooter className="gap-2">
-                 <AddVipForm guildId={guildId} onVipAdded={handleVipListChanged} />
-                 <CreateVipForm guildId={guildId} onVipAdded={handleVipListChanged} />
+                 <AddVipForm guildId={guildId} onVipAdded={handleVipListChanged} serverActions={serverActions} />
+                 <CreateVipForm guildId={guildId} onVipAdded={handleVipListChanged} serverActions={serverActions} />
             </CardFooter>
         </Card>
     </div>
   );
 }
-

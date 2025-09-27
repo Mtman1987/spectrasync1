@@ -1,3 +1,5 @@
+'use server';
+
 import path from "node:path"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { randomUUID } from "node:crypto"
