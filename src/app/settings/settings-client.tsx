@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Settings, UserPlus, Webhook, Trash, PlusCircle, Coins } from "lucide-react";
 import { getAdminInfo, addVip, addPointsToAdmin } from "@/app/actions";
-import { addWebhook, getWebhooks, deleteWebhook, testGifWebhook, type Webhook as WebhookType, getSettings, saveSettings } from "@/app/settings/actions";
+import { addWebhook, getWebhooks, deleteWebhook, type Webhook as WebhookType, getSettings, saveSettings } from "@/app/settings/actions";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -79,134 +79,6 @@ function AddWebhookForm({ guildId, onWebhookAdded }: { guildId: string, onWebhoo
 }
 
 
-function GifTestCard({ guildId }: { guildId: string | null }) {
-    const { toast } = useToast();
-    const [mp4Url, setMp4Url] = useState('');
-    const [webhooks, setWebhooks] = useState<WebhookType[]>([]);
-    const [selectedWebhookId, setSelectedWebhookId] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
-    const [lastResult, setLastResult] = useState<string | null>(null);
-    const [isPending, startTransition] = useTransition();
-
-    useEffect(() => {
-        if (!guildId) {
-            setWebhooks([]);
-            setSelectedWebhookId('');
-            setIsLoading(false);
-            return;
-        }
-
-        let cancelled = false;
-        setIsLoading(true);
-        getWebhooks(guildId)
-            .then((fetched) => {
-                if (cancelled) return;
-                setWebhooks(fetched);
-                setSelectedWebhookId((current) => {
-                    if (current && fetched.some((hook) => hook.id === current)) {
-                        return current;
-                    }
-                    return fetched[0]?.id ?? '';
-                });
-                setIsLoading(false);
-            })
-            .catch((error) => {
-                if (cancelled) return;
-                console.error('Failed to load webhooks for GIF test', error);
-                toast({ title: 'Could not load webhooks', description: 'Refresh the page and try again.', variant: 'destructive' });
-                setWebhooks([]);
-                setSelectedWebhookId('');
-                setIsLoading(false);
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [guildId, toast]);
-
-    const handleTest = () => {
-        if (!guildId) {
-            toast({ title: 'Missing community', description: 'Select or link a community first.', variant: 'destructive' });
-            return;
-        }
-        if (!selectedWebhookId) {
-            toast({ title: 'Select a webhook', description: 'Add a webhook entry before running the test.', variant: 'destructive' });
-            return;
-        }
-        if (!mp4Url.trim()) {
-            toast({ title: 'Provide a clip URL', description: 'Enter an MP4 URL to convert.', variant: 'destructive' });
-            return;
-        }
-
-        setLastResult(null);
-        startTransition(async () => {
-            const result = await testGifWebhook({
-                guildId,
-                webhookId: selectedWebhookId,
-                mp4Url: mp4Url.trim(),
-            });
-
-            if (result.success) {
-                setLastResult(`Sent GIF (duration ${result.details.durationSeconds.toFixed(2)}s)`);
-                toast({ title: 'GIF sent!', description: 'Check the selected Discord channel for the conversion preview.' });
-            } else {
-                setLastResult(null);
-                toast({ title: 'Failed to send GIF', description: result.error, variant: 'destructive' });
-            }
-        });
-    };
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-lg">GIF Conversion Tester</CardTitle>
-                <CardDescription>Try the MP4 to GIF pipeline and deliver it to one of your configured webhooks.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="gif-test-url">MP4 URL</Label>
-                    <Input
-                        id="gif-test-url"
-                        placeholder="https://clips.twitch.tv/awesome-clip.mp4"
-                        value={mp4Url}
-                        onChange={(event) => setMp4Url(event.target.value)}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label>Target Webhook</Label>
-                    <Select
-                        value={selectedWebhookId}
-                        onValueChange={setSelectedWebhookId}
-                        disabled={isLoading || webhooks.length === 0}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder={isLoading ? 'Loading...' : 'Select a webhook'} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {webhooks.map((hook) => (
-                                <SelectItem key={hook.id} value={hook.id}>
-                                    {hook.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    {webhooks.length === 0 && !isLoading && (
-                        <p className="text-xs text-muted-foreground">Add a webhook above to enable testing.</p>
-                    )}
-                </div>
-                {lastResult && (
-                    <p className="text-sm text-muted-foreground">{lastResult}</p>
-                )}
-            </CardContent>
-            <CardFooter>
-                <Button onClick={handleTest} disabled={isPending || isLoading || webhooks.length === 0}>
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                    Send test GIF
-                </Button>
-            </CardFooter>
-        </Card>
-    );
-}
 function WebhooksList({ guildId }: { guildId: string | null }) {
     const { toast } = useToast();
     const [webhooks, setWebhooks] = useState<WebhookType[]>([]);
@@ -410,7 +282,6 @@ export function SettingsClientPage({ guildId, adminId, initialCommunityInfo }: {
                 <ClipSettingsForm guildId={guildId} />
                 <LinkConfigForm guildId={guildId} />
                 <WebhooksList guildId={guildId} />
-                <GifTestCard guildId={guildId} />
                 <DevToolsCard guildId={guildId} adminId={adminId} />
             </div>
         </div>
