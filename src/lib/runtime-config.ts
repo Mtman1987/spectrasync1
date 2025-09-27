@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { homedir } from "node:os";
+import { getAdminDb } from './firebase-admin';
 
 type FirebaseCredentialState = "unknown" | "available" | "unavailable";
 
@@ -268,7 +269,6 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
 
   isInitializing = true;
   try {
-    const { getAdminDb } = await import('./firebase-admin');
     const db = await getAdminDb();
     const ref = db.collection("app_settings").doc("runtime");
     const doc = await ref.get();
