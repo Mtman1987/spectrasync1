@@ -8,7 +8,7 @@ Set-Location $projectRoot
 
 $port = 9002
 # default dev domain used for ngrok when tunneling
-$defaultNgrokDomain = 'mtman.ngrok-free.dev'
+$defaultNgrokDomain = 'unostensible-carola-preallied.ngrok-free.dev'
 
 $refreshProc = $null
 
@@ -44,10 +44,34 @@ $null = $envBaseUrl
 if ($Domain) { $ngrokDomain = $Domain } else { $ngrokDomain = $defaultNgrokDomain }
 
 function Stop-DevProcesses {
+    # Stop VIP refresh process first
+    Stop-VipRefreshLoop
+    
+    # Kill all related processes
     Get-Process -Name ngrok -ErrorAction SilentlyContinue | Stop-Process -Force
     Get-Process -Name node -ErrorAction SilentlyContinue |
         Where-Object { $_.Path -and $_.Path -like '*spectrasync*' } |
         Stop-Process -Force
+    Get-Process -Name tsx -ErrorAction SilentlyContinue | Stop-Process -Force
+    
+    # Kill VIP processes by command line pattern
+    try {
+        $vipProcesses = Get-WmiObject Win32_Process | Where-Object {
+            $_.CommandLine -and (
+                $_.CommandLine -like "*vip-live-refresh*" -or
+                $_.CommandLine -like "*vip-live-runner*" -or
+                ($_.CommandLine -like "*tsx*" -and $_.CommandLine -like "*spectrasync*")
+            )
+        }
+        
+        if ($vipProcesses) {
+            $vipProcesses | ForEach-Object {
+                try { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } catch {}
+            }
+        }
+    } catch {}
+    
+    # Clean up port connections
     $connections = Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue
     if ($connections) {
         $connections | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object {
@@ -75,6 +99,24 @@ function Stop-VipRefreshLoop {
         Start-Sleep -Milliseconds 200
         try { $refreshProc | Stop-Process -Force } catch {}
     }
+    
+    # Also kill any remaining VIP processes by pattern
+    try {
+        $vipProcesses = Get-WmiObject Win32_Process | Where-Object {
+            $_.CommandLine -and (
+                $_.CommandLine -like "*vip-live-refresh*" -or
+                $_.CommandLine -like "*refresh:vip*" -or
+                ($_.CommandLine -like "*npm*" -and $_.CommandLine -like "*refresh:vip*")
+            )
+        }
+        
+        if ($vipProcesses) {
+            $vipProcesses | ForEach-Object {
+                try { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } catch {}
+            }
+        }
+    } catch {}
+    
     $refreshProc = $null
 }
 
@@ -87,9 +129,10 @@ while ($true) {
     Write-Host "Starting dev environment..." -ForegroundColor Cyan
     $ngrokProc = $null
     if ($useTunnel) {
-        Write-Host "Starting ngrok tunnel for domain $ngrokDomain -> localhost:$port" -ForegroundColor DarkCyan
-        $ngrokProc = Start-Process -FilePath ngrok -ArgumentList @('http', $port, '--domain', $ngrokDomain) -PassThru -WindowStyle Hidden
-        Start-Sleep -Seconds 3
+        Write-Host "Starting ngrok tunnel for localhost:$port" -ForegroundColor DarkCyan
+        # Start ngrok with specific URL
+        Start-Process -FilePath "cmd" -ArgumentList "/c", "ngrok", "http", $port, "--url=https://$ngrokDomain" -WindowStyle Hidden
+        Start-Sleep -Seconds 5
     } else {
         Write-Host "Skipping ngrok tunnel (using NEXT_PUBLIC_BASE_URL = $envBaseUrl)" -ForegroundColor DarkYellow
     }

@@ -840,15 +840,29 @@ export async function addPointsToAdmin(guildId: string, adminDiscordId: string, 
 }
 
 export async function getSession(): Promise<SessionData> {
-    const sessionOptions = await getSessionOptions();
-    const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
-    
-    // Default values if session is new
-    if (!session.isLoggedIn) {
-        session.isLoggedIn = false;
-    }
+    try {
+        const sessionOptions = await Promise.race([
+            getSessionOptions(),
+            new Promise<never>((_, reject) => 
+                setTimeout(() => reject(new Error('Session options timeout')), 5000)
+            )
+        ]);
+        
+        const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
+        
+        // Default values if session is new
+        if (!session.isLoggedIn) {
+            session.isLoggedIn = false;
+        }
 
-    return session;
+        return session;
+    } catch (error) {
+        console.error('Session initialization failed:', error);
+        // Return a default session if initialization fails
+        return {
+            isLoggedIn: false
+        };
+    }
 }
 
 export async function updateSelectedGuild(guildId: string) {

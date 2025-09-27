@@ -140,14 +140,8 @@ async function resolveServiceAccount(): Promise<ServiceAccountConfig | null> {
     return fromLocalFile;
   }
 
-  // Fallback 2: Try to get it from the runtime config in Firestore.
-  // This is how the deployed app will get its credentials.
-  const b64FromRuntime = await getRuntimeValue<string>("FIREBASE_ADMIN_SDK_JSON_BASE64");
-  if (b64FromRuntime) {
-    const decoded = Buffer.from(b64FromRuntime, "base64").toString("utf8");
-    const parsed = parseServiceAccount(decoded);
-    if (parsed) return parsed;
-  }
+  // Note: We don't try to get credentials from runtime config here to avoid circular dependency
+  // The runtime config system depends on Firebase being initialized first
 
   return null;
 }
