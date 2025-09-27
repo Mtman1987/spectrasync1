@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
-import { getSettings } from '@/app/settings/actions';
+import { getSettings } from '@/app/actions';
 import { FieldValue, type CollectionReference, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { getCurrentRaidTrainConductorId } from '@/app/raid-train/actions';
 import { getTwitchChatParticipants, getTwitchUsersByLogins, getTwitchUserById, type BasicTwitchUser } from '@/lib/twitch';
@@ -302,4 +302,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }
-

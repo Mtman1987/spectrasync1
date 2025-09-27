@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import { getSettings } from "@/app/settings/actions";
+import { getSettings } from "@/app/actions";
 
 interface CommunityPoolClientPageProps {
   initialUsers: LiveUser[];

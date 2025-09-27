@@ -20,7 +20,7 @@ import type { LeaderboardUser } from "@/app/leaderboard/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
-import { getSettings } from "@/app/settings/actions";
+import { getSettings } from "@/app/actions";
 
 interface RaidPileClientPageProps {
   guildId: string;

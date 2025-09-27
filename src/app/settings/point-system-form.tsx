@@ -25,7 +25,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useTransition, useState, useEffect } from "react";
 import { Loader2, Medal, Wand2 } from "lucide-react";
-import { saveSettings, getSettings } from "./actions";
+import { saveSettings } from "./actions";
+import { getSettings } from "@/app/actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const PointsFormSchema = z.object({

@@ -16,7 +16,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -28,6 +27,7 @@ import { useTransition, useState, useEffect } from "react";
 import { Loader2, Train, Wand2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { FullScheduleDialog } from "./full-schedule-dialog";
+import { getSettings } from "@/app/actions";
 
 
 const SettingsFormSchema = z.object({
@@ -61,7 +61,6 @@ export function RaidTrainSettingsForm({ guildId, onSettingsSaved }: { guildId: s
 
     useEffect(() => {
         async function fetchGuildAndSettings() {
-            const { getSettings } = await import('@/app/settings/actions');
             if (guildId) {
                 const settings = await getSettings(guildId);
                 form.reset(settings);

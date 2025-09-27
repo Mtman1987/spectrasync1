@@ -4,7 +4,7 @@ import { getRuntimeValue } from '@/lib/runtime-config';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { DocumentReference, Timestamp } from 'firebase-admin/firestore';
 import type { LiveUser } from './raid-pile/types';
-import { getSettings } from './settings/actions';
+import { defaultSettings, type CommunitySettings } from './settings/actions';
 import { getTwitchUserByUsername, getTwitchStreams, getTwitchClips, getTwitchStreamsByLogins, getClipById } from '@/lib/twitch';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
@@ -12,7 +12,7 @@ import { getSessionOptions, type SessionData } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { sanitizeForLog } from '@/lib/sanitize';
 import { getFallbackAdminProfile, setFallbackAdminProfile } from '@/lib/admin-fallback-store';
-import { isFirebaseUnavailableError } from '@/lib/firebase-admin';
+import { isFirebaseUnavailableError } from '@/lib/firebase-errors';
 
 // Helper to get Firebase admin DB with dynamic import
 async function getDb() {
@@ -908,4 +908,25 @@ export async function logout() {
     const session = await getIronSession<SessionData>(await cookies(), sessionOptions);
     session.destroy();
     revalidatePath("/", "layout");
+}
+
+// Retrieves the settings for a specific community.
+export async function getSettings(guildId: string): Promise<CommunitySettings> {
+    if (!guildId) {
+        return defaultSettings;
+    }
+    try {
+        const db = await getDb();
+        const doc = await db.collection('communities').doc(guildId).collection('settings').doc('points').get();
+
+        if (!doc.exists) {
+            return defaultSettings;
+        }
+        
+        return { ...defaultSettings, ...doc.data() } as CommunitySettings;
+
+    } catch (e) {
+        console.error(`Error getting settings for guild ${guildId}: `, e);
+        return defaultSettings;
+    }
 }

@@ -11,7 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { saveSettings, getSettings } from "./actions";
+import { saveSettings } from "./actions";
+import { getSettings } from "@/app/actions";
 import { Loader2, Film } from "lucide-react";
 
 const ClipSettingsSchema = z.object({

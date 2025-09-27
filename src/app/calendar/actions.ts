@@ -3,7 +3,7 @@
 
 import { format, startOfDay, parseISO, startOfMonth, getDaysInMonth, getDay, parse } from "date-fns";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { getSettings } from "../settings/actions";
+import { getSettings } from "../actions";
 import { getAdminInfo, getUserInfoByDiscordId } from "../actions";
 
 

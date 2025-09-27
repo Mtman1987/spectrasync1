@@ -2,10 +2,6 @@
 "use server";
 
 import type { ConvertMp4ToGifOptions } from "@/lib/convertVideoToGif";
-import { randomUUID } from "node:crypto";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { writeFile, unlink } from "node:fs/promises";
 
 export type CommunitySettings = {
     // App Base URL
@@ -46,7 +42,7 @@ export type Webhook = {
 };
 
 
-const defaultSettings: CommunitySettings = {
+export const defaultSettings: CommunitySettings = {
     // App Base URL
     appBaseUrl: "http://localhost:9002",
 
@@ -91,28 +87,6 @@ export async function saveSettings(guildId: string, settings: Partial<CommunityS
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : String(e);
         return { success: false, error: errorMessage };
-    }
-}
-
-// Retrieves the settings for a specific community.
-export async function getSettings(guildId: string): Promise<CommunitySettings> {
-    if (!guildId) {
-        return defaultSettings;
-    }
-    try {
-        const { getAdminDb } = await import('@/lib/firebase-admin');
-        const db = await getAdminDb();
-        const doc = await db.collection('communities').doc(guildId).collection('settings').doc('points').get();
-
-        if (!doc.exists) {
-            return defaultSettings;
-        }
-        
-        return { ...defaultSettings, ...doc.data() } as CommunitySettings;
-
-    } catch (e) {
-        console.error(`Error getting settings for guild ${guildId}: `, e);
-        return defaultSettings;
     }
 }
 

@@ -2,7 +2,7 @@
 // src/app/api/community/event/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
-import { getSettings } from '@/app/settings/actions';
+import { getSettings } from '@/app/actions';
 import { FieldValue } from 'firebase-admin/firestore';
 
 // This endpoint is called by the bot to report various community events.

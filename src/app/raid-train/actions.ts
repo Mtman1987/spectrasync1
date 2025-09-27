@@ -5,9 +5,8 @@
 import { getAdminDb } from "@/lib/firebase-admin";
 import type { LiveUser } from "../raid-pile/types";
 import { format, addDays, getHours, parse, startOfDay } from "date-fns";
-import { getLiveUsersFromTwitch, getUsersFromDb, getTwitchUserByUsername } from "../actions";
+import { getLiveUsersFromTwitch, getUsersFromDb, getTwitchUserByUsername, getSettings } from "../actions";
 import { FieldValue, Timestamp, FieldPath } from "firebase-admin/firestore";
-import { getSettings } from "../settings/actions";
 import { getCalendarEvents, getTodaysAnnouncer } from "../calendar/actions";
 
 type TwitchUser = {

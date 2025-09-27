@@ -9,51 +9,13 @@ import {
 } from "./runtime-config";
 import type { App, AppOptions } from "firebase-admin/app";
 import type { Firestore } from "firebase-admin/firestore";
+import { FirebaseUnavailableError, isFirebaseUnavailableError } from "./firebase-errors";
 
 const globalForFirebase = globalThis as typeof globalThis & {
   __FIREBASE_ADMIN_DB__?: Firestore;
 };
 
 let db: Firestore | null = globalForFirebase.__FIREBASE_ADMIN_DB__ ?? null;
-
-export class FirebaseUnavailableError extends Error {
-  constructor(message = "Firebase credentials not configured") {
-    super(message);
-    this.name = "FirebaseUnavailableError";
-  }
-}
-
-export function isFirebaseUnavailableError(error: unknown): boolean {
-  if (!error) {
-    return false;
-  }
-
-  if (error instanceof FirebaseUnavailableError) {
-    return true;
-  }
-
-  if (error instanceof Error) {
-    return (
-      error.message.includes("Firestore has not been initialized") ||
-      error.message.includes("Firebase not available") ||
-      error.message.includes("credentials not configured") ||
-      error.message.includes("Application Default Credentials are not available") ||
-      error.message.includes("UNAUTHENTICATED") ||
-      error.message.includes("invalid authentication credentials")
-    );
-  }
-
-  if (typeof error === "string") {
-    return (
-      error.includes("Firebase not available") ||
-      error.includes("credentials not configured") ||
-      error.includes("UNAUTHENTICATED") ||
-      error.includes("invalid authentication credentials")
-    );
-  }
-
-  return false;
-}
 
 type ServiceAccountConfig = admin.ServiceAccount & {
   project_id?: string;
