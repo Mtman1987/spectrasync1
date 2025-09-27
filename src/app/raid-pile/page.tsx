@@ -1,6 +1,7 @@
+'use server';
 
 import { redirect } from 'next/navigation';
-import { getSession, getAdminInfo, getLiveRaidPiles, getSettings } from '@/app/actions';
+import { getSession, getAdminInfo, getLiveRaidPiles } from '@/app/actions';
 import { getLeaderboard } from '@/app/leaderboard/actions';
 import { AppLayout } from '@/components/layout/app-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ import { Twitch } from '@/components/icons';
 import { Input } from '@/components/ui/input';
 import Image from 'next/image';
 import { getRuntimeValue } from '@/lib/runtime-config';
+import { getSettings } from '@/app/actions';
 
 
 async function QuickLinkCard({ guildId }: { guildId: string }) {
@@ -50,7 +52,7 @@ export default async function RaidPilePage({ searchParams }: { searchParams?: Re
 
   const { value: adminData } = await getAdminInfo(session.adminId);
   const guildId = adminData?.selectedGuild ?? null;
-  const adminGuilds = adminData?.guilds ?? [];
+  const adminGuilds = adminData?.discordUserGuilds ?? [];
   const isEmbedded = searchParams ? Object.prototype.hasOwnProperty.call(searchParams, 'frame_id') : false;
 
   const baseUrl = await getRuntimeValue<string>('NEXT_PUBLIC_BASE_URL');

@@ -1,3 +1,4 @@
+'use server';
 const DISCORD_API_BASE = process.env.DISCORD_API_BASE_URL ?? 'https://discord.com/api/v10';
 
 type DiscordWebhookMessage = {

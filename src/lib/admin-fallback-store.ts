@@ -1,3 +1,4 @@
+'use server';
 const adminStore = new Map<string, Record<string, unknown>>();
 
 const maybeStructuredClone =

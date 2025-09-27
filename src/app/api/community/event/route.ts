@@ -1,111 +1,134 @@
+'use server';
 
-// src/app/api/community/event/route.ts
-import { type NextRequest, NextResponse } from 'next/server';
-import { getAdminDb } from '@/lib/firebase-admin';
-import { getSettings } from '@/app/actions';
-import { FieldValue } from 'firebase-admin/firestore';
+// src/app/api/join-callback/route.ts
+import { type NextRequest, NextResponse } from "next/server";
+import { saveUserInfoByDiscordId } from "@/app/actions";
+import { getRuntimeValue } from "@/lib/runtime-config";
+import { isValidUrl } from "@/lib/sanitize";
 
-// This endpoint is called by the bot to report various community events.
-export async function POST(request: NextRequest) {
-  try {
-    const { guildId, eventType, userId, eventData } = await request.json();
+const DEFAULT_BASE_URL = "https://spacemtn--cosmic-raid-app.us-central1.hosted.app";
 
-    const safeEventData = eventData ?? {};
-
-    if (!guildId || !eventType || !userId) {
-      return NextResponse.json({ success: false, error: 'Missing required fields: guildId, eventType, and userId are required.' }, { status: 400 });
+async function resolveBaseUrl(request: NextRequest) {
+    try {
+        const runtime = await getRuntimeValue<string>("NEXT_PUBLIC_BASE_URL");
+        if (runtime) return runtime;
+    } catch (e) {
+        console.error("Error reading runtime config for base URL:", e);
     }
 
-    // In a production environment, you might add a shared secret check here
-    // to ensure only your bot can call this endpoint.
-
-    const db = getAdminDb();
-    const settings = await getSettings(guildId);
-    const userRef = db.collection(`communities/${guildId}/users`).doc(userId);
-    let pointsToAward = 0;
-    let eventLog: any = {
-        type: eventType,
-        timestamp: FieldValue.serverTimestamp(),
-    };
-
-    switch (eventType) {
-      case 'follow':
-        pointsToAward = settings.newFollowerPoints;
-        if (safeEventData.targetUserId) {
-          eventLog.followed = safeEventData.targetUserId;
-        }
-        break;
-      case 'subscribe':
-        pointsToAward = settings.subscriptionPoints;
-        if (safeEventData.targetUserId) {
-          eventLog.subscribedTo = safeEventData.targetUserId;
-        }
-        eventLog.tier = safeEventData.tier || '1000';
-        break;
-      case 'cheer':
-        const bits = Number(safeEventData.bits) || 0;
-        pointsToAward = bits * settings.cheerPointsPerBit;
-        if (safeEventData.targetUserId) {
-          eventLog.cheeredOn = safeEventData.targetUserId;
-        }
-        eventLog.bits = bits;
-        break;
-      case 'hypeTrain':
-        pointsToAward = settings.hypeTrainContributionPoints;
-        if (safeEventData.targetUserId) {
-          eventLog.contributedTo = safeEventData.targetUserId;
-        }
-        break;
-      default:
-        return NextResponse.json({ success: false, error: 'Invalid eventType.' }, { status: 400 });
+    if (process.env.NEXT_PUBLIC_BASE_URL) {
+        return process.env.NEXT_PUBLIC_BASE_URL;
     }
-    
-    if (pointsToAward > 0) {
-        // Use a transaction to ensure atomicity
-        await db.runTransaction(async (transaction) => {
-            const userDataToMerge: Record<string, unknown> = {
-                points: FieldValue.increment(pointsToAward),
-                lastPointsUpdateAt: FieldValue.serverTimestamp(),
-            };
 
-            const twitchProfileFields = {
-                id: safeEventData.twitchUserId,
-                displayName: safeEventData.twitchDisplayName,
-                login: safeEventData.twitchLogin,
-                avatar: safeEventData.twitchAvatar,
-            };
+    if (process.env.NODE_ENV === "development") {
+        return request.nextUrl.origin;
+    }
 
-            if (Object.values(twitchProfileFields).some(Boolean)) {
-                userDataToMerge.twitchInfo = {
-                    ...(safeEventData.twitchInfo || {}),
-                    ...Object.fromEntries(
-                        Object.entries(twitchProfileFields).filter(([, value]) => Boolean(value))
-                    ),
-                };
-            }
+    return DEFAULT_BASE_URL;
+}
 
-            if (safeEventData.discordId || safeEventData.discordUsername || safeEventData.discordAvatar) {
-                userDataToMerge.discordInfo = {
-                    ...(safeEventData.discordInfo || {}),
-                    ...(safeEventData.discordId ? { id: safeEventData.discordId } : {}),
-                    ...(safeEventData.discordUsername ? { username: safeEventData.discordUsername } : {}),
-                    ...(safeEventData.discordAvatar ? { avatar: safeEventData.discordAvatar } : {}),
-                };
-            }
+export async function GET(request: NextRequest) {
+    const { searchParams } = new URL(request.url);
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
 
-            transaction.set(userRef, userDataToMerge, { merge: true });
+    const baseUrl = await resolveBaseUrl(request);
 
-            // Log the event for analytics
-            const eventRef = userRef.collection('events').doc(`${eventType}-${Date.now()}`);
-            transaction.set(eventRef, { ...eventLog, points: pointsToAward });
+    if (!code) {
+        return NextResponse.redirect(new URL('/join?error=Missing authorization code', baseUrl));
+    }
+
+    let action: string | null = null;
+    let guildIdFromState: string | null = null;
+
+    if (state) {
+        const decodedState = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
+        action = decodedState.action;
+        guildIdFromState = decodedState.guildId;
+    }
+
+    if (!action || !guildIdFromState) {
+         return NextResponse.redirect(new URL('/join?error=Invalid or missing action parameter', baseUrl));
+    }
+
+    try {
+    const redirectUri = new URL('/api/join-callback', baseUrl).toString();
+
+        const clientId = await getRuntimeValue<string>("NEXT_PUBLIC_DISCORD_CLIENT_ID", process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID);
+        const clientSecret = await getRuntimeValue<string>("DISCORD_CLIENT_SECRET", process.env.DISCORD_CLIENT_SECRET);
+        if (!clientId || !clientSecret) throw new Error("Server is missing Discord client credentials");
+
+        const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                client_id: clientId,
+                client_secret: clientSecret,
+                grant_type: 'authorization_code',
+                code,
+                redirect_uri: redirectUri,
+            }).toString(),
         });
+
+        const tokenData = await tokenResponse.json();
+        if (!tokenResponse.ok) {
+            throw new Error(`Discord token exchange failed: ${tokenData.error_description || 'Unknown error'}`);
+        }
+        
+        const accessToken = tokenData.access_token;
+        
+        // Validate Discord API endpoints to prevent SSRF
+        const guildsUrl = 'https://discord.com/api/users/@me/guilds';
+        const userUrl = 'https://discord.com/api/users/@me';
+        
+        if (!isValidUrl(guildsUrl) || !isValidUrl(userUrl)) {
+            throw new Error('Invalid Discord API URLs');
+        }
+        
+        const [guildsResponse, userResponse] = await Promise.all([
+            fetch(guildsUrl, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            }),
+            fetch(userUrl, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            })
+        ]);
+
+        if (!guildsResponse.ok || !userResponse.ok) {
+            throw new Error("Failed to fetch user's guilds or identity from Discord.");
+        }
+        
+        const [guildsData, userData] = await Promise.all([guildsResponse.json(), userResponse.json()]);
+        
+        const discordId = userData.id;
+        if (!discordId) {
+            throw new Error("Could not resolve user's Discord ID.");
+        }
+
+        if (!guildsData.some((g: any) => g.id === guildIdFromState)) {
+            return NextResponse.redirect(new URL(`/join?action=${action}&error=Could not determine a community. Please join the Discord server first.`, baseUrl));
+        }
+
+        // Save basic user info
+        await saveUserInfoByDiscordId(guildIdFromState, discordId, {
+            discordInfo: {
+                id: userData.id,
+                username: userData.username,
+                avatar: userData.avatar ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png` : null,
+            }
+        });
+        
+        const redirectUrl = new URL('/join', baseUrl);
+        redirectUrl.searchParams.set('action', action);
+        redirectUrl.searchParams.set('guildId', guildIdFromState);
+        redirectUrl.searchParams.set('discordId', discordId);
+        return NextResponse.redirect(redirectUrl);
+
+    } catch (e) {
+        console.error("Join callback error:", e);
+        const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
+        const errorRedirectUrl = new URL(`/join?action=${action}`, baseUrl);
+        errorRedirectUrl.searchParams.set('error', errorMessage);
+        return NextResponse.redirect(errorRedirectUrl);
     }
-
-    return NextResponse.json({ success: true, message: `Processed '${eventType}' event for user ${userId}. Awarded ${pointsToAward} points.` });
-
-  } catch (error) {
-    console.error('Error in community event API route:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
-  }
 }

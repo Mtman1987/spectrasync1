@@ -1,3 +1,4 @@
+'use server';
 
 import { redirect } from 'next/navigation';
 import { getSession, getAdminInfo, getLiveVipUsers, addVip, removeVip, createAndAddVip, updateVip } from '@/app/actions';

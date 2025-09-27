@@ -1,3 +1,4 @@
+'use server';
 "use client";
 
 import type { ReactNode } from 'react';

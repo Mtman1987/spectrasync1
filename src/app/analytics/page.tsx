@@ -1,3 +1,5 @@
+'use server';
+
 import { AppLayout } from "@/components/layout/app-layout";
 import { redirect } from 'next/navigation';
 import { getSession, getAdminInfo } from "@/app/actions";

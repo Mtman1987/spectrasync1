@@ -1,3 +1,4 @@
+'use server';
 /**
  * Twitch API helpers used by server actions. These functions run on the server
  * and reuse cached app access tokens to minimize auth round-trips.

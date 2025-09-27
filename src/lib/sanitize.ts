@@ -1,3 +1,4 @@
+'use server';
 // Utility functions for sanitizing user input
 export function sanitizeForLog(input: unknown): string {
   if (typeof input !== 'string') {

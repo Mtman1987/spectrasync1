@@ -1,3 +1,4 @@
+'use server';
 
 // src/app/api/chat/route.ts
 import { type NextRequest, NextResponse } from 'next/server';

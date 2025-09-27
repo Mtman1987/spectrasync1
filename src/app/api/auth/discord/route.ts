@@ -1,3 +1,4 @@
+'use server';
 // src/app/api/auth/discord/route.ts
 import { type NextRequest, NextResponse } from "next/server";
 import { generateDiscordState } from "@/lib/discord-oauth-state";

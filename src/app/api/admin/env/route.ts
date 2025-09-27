@@ -1,3 +1,4 @@
+'use server';
 import { NextResponse, type NextRequest } from "next/server";
 
 async function validateSecret(request: NextRequest) {

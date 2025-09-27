@@ -1,7 +1,6 @@
+'use server';
 
 // src/app/raid-train/actions.ts
-"use server";
-
 import { getAdminDb } from "@/lib/firebase-admin";
 import type { LiveUser } from "../raid-pile/types";
 import { format, addDays, getHours, parse, startOfDay } from "date-fns";

@@ -1,6 +1,4 @@
-
-// src/app/dashboard/actions.ts
-"use server";
+'use server';
 
 import { getAdminDb } from "@/lib/firebase-admin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";

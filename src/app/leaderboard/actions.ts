@@ -1,9 +1,9 @@
+'use server';
 // src/app/leaderboard/actions.ts
-"use server";
 
 import { getAdminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
-import { getSettings } from "../settings/actions";
+import { getSettings } from "../actions";
 
 export type LeaderboardUser = {
     twitchId?: string;

@@ -1,3 +1,4 @@
+'use server';
 import { redirect } from 'next/navigation';
 import { getSession, getAdminInfo, getLiveCommunityPoolUsers } from '@/app/actions';
 import { CommunityPoolClientPage } from '@/app/community-pool/community-pool-client-page';
@@ -15,7 +16,7 @@ export default async function CommunityPoolPage({ searchParams }: PageProps) {
 
   const { value: adminData } = await getAdminInfo(session.adminId);
   const guildId = adminData?.selectedGuild ?? null;
-  const adminGuilds = adminData?.guilds ?? [];
+  const adminGuilds = adminData?.discordUserGuilds ?? [];
 
   if (!guildId) {
     return (

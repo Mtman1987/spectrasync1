@@ -1,19 +1,54 @@
+'use server';
 "use client";
 
-import { useEffect, useState } from "react";
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
-import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+} from "@/components/ui/sidebar";
+import { CosmicRaidLogo } from "@/components/icons";
+import {
+  LayoutDashboard,
+  Rocket,
+  Sparkles,
+  Calendar,
+  LineChart,
+  Heart,
+  Crown,
+  Swords,
+  MessageSquare,
+  Settings,
+} from "lucide-react";
+import { UserNav } from "./user-nav";
+import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useSidebar } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import { updateSelectedGuild } from "@/app/actions";
+import { useTransition } from "react";
 
-type Notification = {
-    title: string;
-    description: string;
-    href: string;
-}
+const menuItems = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/raid-pile", label: "Raid Pile", icon: Swords },
+  { href: "/raid-train", label: "Raid Train", icon: Rocket },
+  { href: "/community-pool", label: "Community Pool", icon: Heart },
+  { href: "/vip-live", label: "VIP Live", icon: Crown },
+  { href: "/community-spotlight", label: "Spotlight", icon: Sparkles },
+  { href: "/calendar", label: "Calendar", icon: Calendar },
+  { href: "/team-chat", label: "Team Chat", icon: MessageSquare },
+  { href: "/analytics", label: "Analytics", icon: LineChart },
+];
+
+const bottomMenuItems = [
+    { href: "/settings", label: "Settings", icon: Settings },
+]
 
 interface AdminGuild {
   id: string;
@@ -21,63 +56,102 @@ interface AdminGuild {
   icon: string | null;
 }
 
-interface AppHeaderProps {
-  notifications: Notification[];
-  selectedGuild: string | null;
+interface AppSidebarProps {
+  adminProfile: any;
   adminGuilds: AdminGuild[];
+  selectedGuild: string | null;
 }
 
-export function AppHeader({ notifications, selectedGuild, adminGuilds }: AppHeaderProps) {
+export function AppSidebar({ adminProfile, adminGuilds, selectedGuild }: AppSidebarProps) {
+  const pathname = usePathname();
+  const router = useRouter();
   const { state } = useSidebar();
-  const guildInfo = adminGuilds.find(g => g.id === selectedGuild);
+  const [isPending, startTransition] = useTransition();
   
+  const handleGuildChange = (newGuildId: string) => {
+      if (newGuildId !== selectedGuild) {
+        startTransition(() => {
+          updateSelectedGuild(newGuildId).then(() => {
+            router.refresh();
+          });
+        });
+      }
+  }
+
   return (
-    <header className={cn(
-      "flex h-14 items-center justify-between gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6 sticky top-0 z-30 transition-all duration-300 ease-in-out",
-      "md:pl-[var(--sidebar-width-icon)]",
-      state === 'expanded' && "md:pl-[var(--sidebar-width)]"
-    )}>
-      <SidebarTrigger className="md:hidden" />
-      
-      <div className="flex-1" />
+    <Sidebar className="border-r" collapsible="icon">
+      <SidebarHeader>
+        <Link href={selectedGuild ? `/dashboard` : "/"} className="flex items-center gap-2 p-2">
+          <CosmicRaidLogo className="w-8 h-8 text-primary" />
+          <span className="text-lg font-semibold tracking-tight font-headline">
+            Cosmic Raid
+          </span>
+        </Link>
+      </SidebarHeader>
+      <SidebarContent className="p-2">
+        <SidebarMenu>
+          {menuItems.map((item) => (
+            <SidebarMenuItem key={item.href}>
+              <Link href={item.href}>
+                <SidebarMenuButton
+                  isActive={pathname.startsWith(item.href)}
+                  tooltip={{ children: item.label, side: "right" }}
+                  disabled={!selectedGuild}
+                >
+                  <item.icon />
+                  <span>{item.label}</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarContent>
+      <SidebarFooter className="p-2 flex flex-col gap-2">
+         <SidebarMenu>
+             {bottomMenuItems.map((item) => {
+                const isAlwaysEnabled = item.href === '/settings';
+                const isDisabled = !isAlwaysEnabled && !selectedGuild;
 
-       <div className="flex items-center gap-2">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" className="relative">
-                        <Bell className="h-4 w-4" />
-                        {notifications.length > 0 && (
-                            <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-destructive border-2 border-card" />
+                return (
+                    <SidebarMenuItem key={item.href}>
+                    <Link href={item.href}>
+                        <SidebarMenuButton
+                            isActive={pathname.startsWith(item.href)}
+                            tooltip={{ children: item.label, side: "right" }}
+                            disabled={isDisabled}
+                        >
+                            <item.icon />
+                            <span>{item.label}</span>
+                        </SidebarMenuButton>
+                    </Link>
+                    </SidebarMenuItem>
+                )
+            })}
+        </SidebarMenu>
+        <div className={cn(state === 'collapsed' && 'hidden')}>
+            {isPending ? (
+                <Skeleton className="h-9 w-full" />
+            ) : (
+                <Select value={selectedGuild || undefined} onValueChange={handleGuildChange} disabled={!adminGuilds || adminGuilds.length === 0}>
+                    <SelectTrigger className="w-full text-sm">
+                        <SelectValue placeholder="Select a community" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {adminGuilds?.map((guild) => (
+                            <SelectItem key={guild.id} value={guild.id}>
+                                {guild.name}
+                            </SelectItem>
+                        ))}
+                         {(!adminGuilds || adminGuilds.length === 0) && (
+                            <SelectItem value="no-guilds" disabled>No communities linked</SelectItem>
                         )}
-                        <span className="sr-only">Notifications</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80">
-                    <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {notifications.length > 0 ? notifications.map((notification, index) => (
-                         <DropdownMenuItem key={index} asChild>
-                            <Link href={notification.href} className="flex flex-col items-start gap-1">
-                                <p className="font-semibold">{notification.title}</p>
-                                <p className="text-xs text-muted-foreground">{notification.description}</p>
-                            </Link>
-                         </DropdownMenuItem>
-                    )) : (
-                        <DropdownMenuItem disabled>No new notifications</DropdownMenuItem>
-                    )}
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            {guildInfo && (
-                <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm hidden sm:inline-block">{guildInfo.name}</span>
-                <Avatar className="h-8 w-8">
-                    <AvatarImage src={guildInfo.icon ? `https://cdn.discordapp.com/icons/${guildInfo.id}/${guildInfo.icon}.png` : undefined} alt={guildInfo.name} />
-                    <AvatarFallback>{guildInfo.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                </div>
+                    </SelectContent>
+                </Select>
             )}
-       </div>
-    </header>
-  )
+        </div>
+        <Separator />
+        <UserNav user={adminProfile} />
+      </SidebarFooter>
+    </Sidebar>
+  );
 }

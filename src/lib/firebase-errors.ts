@@ -1,3 +1,4 @@
+'use server';
 
 export class FirebaseUnavailableError extends Error {
   constructor(message = "Firebase credentials not configured") {

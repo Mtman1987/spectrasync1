@@ -1,36 +1,24 @@
+
+'use client';
+
 import type { SVGProps } from 'react';
 
 export function CosmicRaidLogo(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
-      width="24"
-      height="24"
+      xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       {...props}
     >
-      <path
-        d="M12.2839 2.00002C12.0139 1.99902 11.7539 2.06202 11.5239 2.18202L4.83391 5.84402C4.31391 6.12602 3.99391 6.66602 3.99391 7.26402V16.736C3.99391 17.335 4.31391 17.875 4.83391 18.157L11.5239 21.819C11.7639 21.944 12.0239 22.002 12.2839 22.002C12.5439 22.002 12.8039 21.944 13.0439 21.819L19.7339 18.157C20.2539 17.875 20.5739 17.335 20.5739 16.736V7.26402C20.5739 6.66602 20.2539 6.12602 19.7339 5.84402L13.0439 2.18202C12.8139 2.06202 12.5539 1.99902 12.2839 2.00002Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M9.25 10.25C10.62 8.88 11.41 7.11 11.52 5.25"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M15.32 18.75C14.15 17.58 13.25 16.14 12.75 14.56"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M12.2832 2.25C12.2832 2.25 12.0332 4.48 10.2832 6.23C8.5332 7.98 6.25312 8.25 6.25312 8.25" />
+      <path d="M12.2832 2.25C12.2832 2.25 12.5332 4.48 14.2832 6.23C16.0332 7.98 18.2531 8.25 18.2531 8.25" />
+      <path d="M18.75 14C18.75 14 16.52 13.75 14.77 11.99C13.02 10.24 12.75 8 12.75 8" />
+      <path d="M5.25 14C5.25 14 7.48 13.75 9.23 11.99C10.98 10.24 11.25 8 11.25 8" />
       <path
         d="M12.2832 11.75C14.2632 11.75 15.8632 10.15 15.8632 8.17C15.8632 6.19 14.2632 4.59 12.2832 4.59C10.3032 4.59 8.70312 6.19 8.70312 8.17C8.70312 10.15 10.3032 11.75 12.2832 11.75Z"
         stroke="currentColor"

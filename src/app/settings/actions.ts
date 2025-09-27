@@ -1,5 +1,5 @@
+'use server';
 // src/app/settings/actions.ts
-"use server";
 
 import type { ConvertMp4ToGifOptions } from "@/lib/convertVideoToGif";
 
@@ -70,7 +70,7 @@ export const defaultSettings: CommunitySettings = {
     clipGifWidth: 480,
     clipGifFps: 15,
     clipGifLoop: 0,
-    clipGifMaxDurationSeconds: 0,
+    clipGifMaxDurationSeconds: 15,
 };
 
 // Saves the settings for a specific community.

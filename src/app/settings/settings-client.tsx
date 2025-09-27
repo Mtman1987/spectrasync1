@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -7,9 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Settings, UserPlus, Webhook, Trash, PlusCircle, Coins } from "lucide-react";
-import { getAdminInfo, addVip, addPointsToAdmin } from "@/app/actions";
+import { getAdminInfo, addVip, addPointsToAdmin, getSettings } from "@/app/actions";
 import { addWebhook, getWebhooks, deleteWebhook, type Webhook as WebhookType, saveSettings } from "@/app/settings/actions";
-import { getSettings } from "@/app/actions";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -280,7 +277,7 @@ export function SettingsClientPage({ guildId, adminId, initialCommunityInfo }: {
                 />
 
                 <PointSystemForm guildId={guildId} />
-                <ClipSettingsForm guildId={guildId} />
+                <ClipSettingsForm guildId={guildId} onSettingsSaved={() => {}} />
                 <LinkConfigForm guildId={guildId} />
                 <WebhooksList guildId={guildId} />
                 <DevToolsCard guildId={guildId} adminId={adminId} />

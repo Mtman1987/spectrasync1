@@ -1,3 +1,5 @@
+'use server';
+
 import dynamic from 'next/dynamic';
 import { getSession, getAdminInfo, getSelectedGuildId } from '@/app/actions';
 import { redirect } from 'next/navigation';

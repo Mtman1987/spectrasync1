@@ -1,3 +1,4 @@
+'use server';
 import { type NextRequest } from "next/server";
 import { getRuntimeValue } from "./runtime-config";
 import { isValidUrl } from "./sanitize";

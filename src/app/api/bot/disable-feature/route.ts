@@ -1,85 +1,147 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { getAdminDb } from "@/lib/firebase-admin";
-import { deleteDiscordMessages, validateBotSecret } from "@/lib/bot-utils";
+'use server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { getLiveVipUsers } from '@/app/actions';
 
 export const dynamic = 'force-dynamic';
+import { getRuntimeValue } from '@/lib/runtime-config';
+import { sanitizeForLog } from '@/lib/sanitize';
 
-// Map external feature identifiers to Firestore settings document IDs
-const FEATURE_TO_CONFIG_ID: Record<string, string> = {
-  "vip-live": "vipLiveConfig",
-  "community-pool": "communityPoolConfig",
-  "raid-train": "raidTrainConfig",
-  "raid-pile": "raidPileConfig",
-};
+async function validateBotSecret(request: NextRequest) {
+  const secret = request.headers.get('x-bot-secret') || request.nextUrl.searchParams.get('secret');
+  const expected = await getRuntimeValue<string>('BOT_SECRET_KEY');
+  return secret === expected;
+}
 
-export async function POST(request: NextRequest) {
-  try {
-    const secretStatus = await validateBotSecret(request);
-    if (!secretStatus.valid) {
-      return NextResponse.json({ error: "Unauthorized", reason: secretStatus.reason }, { status: 401 });
+function buildVipEmbed(vip: any) {
+  return {
+    author: { 
+      name: vip.displayName, 
+      icon_url: vip.avatarUrl, 
+      url: `https://twitch.tv/${vip.twitchLogin}` 
+    },
+    title: vip.latestStreamTitle || 'Live Stream',
+    url: `https://twitch.tv/${vip.twitchLogin}`,
+    description: `*${vip.vipMessage || 'Come hang out and watch the stream!'}*`,
+    color: 0x9146FF,
+    fields: [
+      { name: 'Playing', value: vip.latestGameName || 'Just Chatting', inline: true },
+      { name: 'Viewers', value: vip.latestViewerCount.toString(), inline: true }
+    ],
+    thumbnail: { url: vip.avatarUrl },
+    timestamp: new Date().toISOString()
+  };
+}
+
+async function postToDiscord(webhookUrl: string, payload: any) {
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return response.ok ? await response.json() : null;
+}
+
+async function editDiscordMessage(webhookUrl: string, messageId: string, payload: any) {
+  const response = await fetch(`${webhookUrl}/messages/${messageId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return response.ok;
+}
+
+async function deleteDiscordMessage(webhookUrl: string, messageId: string) {
+  const response = await fetch(`${webhookUrl}/messages/${messageId}`, {
+    method: 'DELETE'
+  });
+  return response.ok;
+}
+
+async function processGuild(guildId: string) {
+  const { getAdminDb } = await import('@/lib/firebase-admin');
+  const db = await getAdminDb();
+  
+  const settingsDoc = await db.collection(`communities/${guildId}/settings`).doc('vipLive').get();
+  if (!settingsDoc.exists) return null;
+  
+  const config = settingsDoc.data()!;
+  const webhookUrl = config.webhookUrl;
+  let messageIds: { [twitchId: string]: string } = config.vipMessageIds || {};
+  
+  if (!webhookUrl) return null;
+  
+  const liveVips = await getLiveVipUsers(guildId);
+  const liveVipIds = new Set(liveVips.map(v => v.twitchId));
+  const postedVipIds = new Set(Object.keys(messageIds));
+  const newMessages: { [twitchId: string]: string } = {};
+  
+  for (const twitchId of postedVipIds) {
+    if (!liveVipIds.has(twitchId)) {
+      await deleteDiscordMessage(webhookUrl, messageIds[twitchId]);
     }
-
-    let raw: unknown;
-    try {
-      raw = await request.json();
-    } catch (err) {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
-
-    // Support payload wrapped in `root`
-    const body = raw && typeof raw === "object" && "root" in (raw as Record<string, unknown>)
-      ? (raw as any).root
-      : (raw as Record<string, unknown>);
-
-    const feature = typeof body?.feature === "string" ? body.feature : undefined;
-    const guildId = typeof body?.guildId === "string" ? body.guildId : undefined;
-    const channelIdFromRequest = typeof body?.channelId === "string" ? body.channelId : undefined;
-
-    if (!feature || !guildId) {
-      return NextResponse.json({ error: "Missing required fields: feature and guildId" }, { status: 400 });
-    }
-
-    const normalized = feature.toLowerCase();
-    const configId = FEATURE_TO_CONFIG_ID[normalized];
-    if (!configId) {
-      return NextResponse.json({ error: `Unsupported feature: ${feature}` }, { status: 400 });
-    }
-
-    const db = await getAdminDb();
-    const settingsRef = db.collection("communities").doc(guildId).collection("settings").doc(configId);
-    const doc = await settingsRef.get();
-
-    if (!doc.exists) {
-      // Still respond success (idempotent); nothing to delete but ensure config is disabled
-      await settingsRef.set({ dispatchEnabled: false, channelId: null, lastDispatchMessageIds: [] }, { merge: true });
-      return NextResponse.json({ status: "disabled", reason: "No existing config; disabled" });
-    }
-
-    const data = doc.data() as Record<string, unknown>;
-    const channelId = channelIdFromRequest ?? (typeof data.channelId === "string" ? data.channelId : undefined);
-    const messageIds = Array.isArray(data.lastDispatchMessageIds) ? data.lastDispatchMessageIds.filter((id) => typeof id === "string") : [];
-
-    if (channelId && messageIds.length > 0) {
-      try {
-        await deleteDiscordMessages(channelId, messageIds as string[]);
-      } catch (err) {
-        console.error("Failed to delete discord messages for disable-feature", err);
-        // continue to disable config even if deletion fails
+  }
+  
+  for (const vip of liveVips) {
+    const embed = buildVipEmbed(vip);
+    const payload = { embeds: [embed] };
+    
+    if (messageIds[vip.twitchId]) {
+      const success = await editDiscordMessage(webhookUrl, messageIds[vip.twitchId], payload);
+      if (success) {
+        newMessages[vip.twitchId] = messageIds[vip.twitchId];
+      }
+    } else {
+      const message = await postToDiscord(webhookUrl, payload);
+      if (message?.id) {
+        newMessages[vip.twitchId] = message.id;
       }
     }
-
-    // Disable dispatch and clear message ids/channel
-    await settingsRef.set({ dispatchEnabled: false, channelId: null, lastDispatchMessageIds: [] }, { merge: true });
-
-    return NextResponse.json({ status: "disabled", feature: normalized, guildId });
-  } catch (error) {
-    console.error("/api/bot/disable-feature error:", error);
-    const message = error instanceof Error ? error.message : "Unexpected error";
-    return NextResponse.json({ error: message }, { status: 500 });
   }
+  
+  await db.collection(`communities/${guildId}/settings`).doc('vipLive').set(
+    { vipMessageIds: newMessages }, 
+    { merge: true }
+  );
+  
+  return { liveVipCount: liveVips.length };
 }
 
 export async function GET(request: NextRequest) {
-  // Allow simple GET for testing via ?feature=...&guildId=...
-  return POST(request);
+  try {
+    if (!await validateBotSecret(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const { getAdminDb } = await import('@/lib/firebase-admin');
+    const db = await getAdminDb();
+    const communitiesSnapshot = await db.collection('communities').get();
+    
+    if (communitiesSnapshot.empty) {
+      return NextResponse.json({ success: true, message: 'No communities to process' });
+    }
+    
+    let totalLiveVips = 0;
+    const results = [];
+    
+    for (const communityDoc of communitiesSnapshot.docs) {
+      const guildId = communityDoc.id;
+      console.log(`Processing VIP Live for guild: ${sanitizeForLog(guildId)}`);
+      
+      const result = await processGuild(guildId);
+      if (result) {
+        totalLiveVips += result.liveVipCount;
+        results.push({ guildId, liveVips: result.liveVipCount });
+      }
+    }
+    
+    return NextResponse.json({
+      success: true,
+      message: `Processed ${results.length} guilds with ${totalLiveVips} live VIPs`,
+      results
+    });
+    
+  } catch (error) {
+    console.error('VIP Live cron error:', sanitizeForLog(error));
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

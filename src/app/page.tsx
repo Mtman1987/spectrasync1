@@ -1,3 +1,4 @@
+'use server';
 
 import { Suspense } from 'react';
 import { getSession } from './actions';

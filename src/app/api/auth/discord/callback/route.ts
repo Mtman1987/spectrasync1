@@ -1,3 +1,4 @@
+'use server';
 // src/app/api/auth/discord/callback/route.ts
 import { type NextRequest, NextResponse } from "next/server";
 import { saveAdminInfo } from "@/app/actions";

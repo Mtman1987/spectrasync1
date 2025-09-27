@@ -1,3 +1,4 @@
+'use server';
 // src/app/api/bot/cron-clips/route.ts
 import { NextResponse, type NextRequest } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';

@@ -1,3 +1,5 @@
+'use server';
+
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSession, getAdminInfo, getSelectedGuildId } from "@/app/actions";

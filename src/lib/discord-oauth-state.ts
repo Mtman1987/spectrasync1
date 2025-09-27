@@ -1,3 +1,4 @@
+'use server';
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { getRuntimeValue } from "./runtime-config";
 
