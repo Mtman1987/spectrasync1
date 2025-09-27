@@ -96,8 +96,8 @@ function loadLocalRuntimeConfig(): Record<string, unknown> | null {
   return localConfigCache;
 }
 
-function buildEnvFallback(): Record<string, unknown> {
-  const localConfig = loadLocalRuntimeConfig();
+function buildEnvFallback(seed?: Record<string, unknown> | null): Record<string, unknown> {
+  const localConfig = seed ?? loadLocalRuntimeConfig();
   const fallback: Record<string, unknown> = localConfig ? { ...localConfig } : {};
 
   for (const key of ENV_FALLBACK_KEYS) {
@@ -107,6 +107,31 @@ function buildEnvFallback(): Record<string, unknown> {
   }
 
   return fallback;
+}
+
+function shouldUseLocalRuntimeConfigOnly(localConfig: Record<string, unknown> | null): boolean {
+  if (process.env.FIREBASE_RUNTIME_FORCE === "1") {
+    return false;
+  }
+
+  if (process.env.FIREBASE_RUNTIME_DISABLED === "1") {
+    return true;
+  }
+
+  if (!localConfig) {
+    return false;
+  }
+
+  const preferLocalFlag = process.env.FIREBASE_RUNTIME_PREFER_LOCAL;
+  if (preferLocalFlag === "1") {
+    return true;
+  }
+
+  if (preferLocalFlag === "0") {
+    return false;
+  }
+
+  return process.env.NODE_ENV !== "production";
 }
 
 export function hasFirebaseCredentials(): boolean {
@@ -136,7 +161,6 @@ export function hasFirebaseCredentials(): boolean {
   );
 
   if (hasInlineCredentials) {
-    markFirebaseCredentialsAvailable();
     return true;
   }
 
@@ -145,7 +169,6 @@ export function hasFirebaseCredentials(): boolean {
   );
 
   if (hasCredentialPath) {
-    markFirebaseCredentialsAvailable();
     return true;
   }
 
@@ -159,7 +182,6 @@ export function hasFirebaseCredentials(): boolean {
   );
 
   if (runningOnGoogleCloud) {
-    markFirebaseCredentialsAvailable();
     return true;
   }
 
@@ -183,7 +205,6 @@ export function hasFirebaseCredentials(): boolean {
 
   for (const candidate of adcCandidatePaths) {
     if (candidate && existsSync(candidate)) {
-      markFirebaseCredentialsAvailable();
       return true;
     }
   }
@@ -197,9 +218,26 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
     return cached;
   }
 
+  const localConfig = loadLocalRuntimeConfig();
+
+  if (!force && shouldUseLocalRuntimeConfigOnly(localConfig)) {
+    if (!missingCredentialWarningShown) {
+      console.info(
+        "Firebase runtime config disabled. Using local runtime-config file and environment variables only.",
+      );
+      missingCredentialWarningShown = true;
+    }
+
+    const fallback = buildEnvFallback(localConfig);
+    cached = fallback;
+    lastFetched = Date.now();
+    markFirebaseCredentialsUnavailable();
+    return fallback;
+  }
+
   // Skip Firebase calls during build phase or if already initializing (prevents circular dependency)
   if (process.env.NEXT_PHASE === 'phase-production-build' || isInitializing) {
-    return cached || buildEnvFallback();
+    return cached || buildEnvFallback(localConfig);
   }
 
   if (firebaseCredentialState === "unavailable" && !force) {
@@ -209,7 +247,7 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
       );
       missingCredentialWarningShown = true;
     }
-    cached = buildEnvFallback();
+    cached = buildEnvFallback(localConfig);
     lastFetched = Date.now();
     return cached;
   }
@@ -247,7 +285,7 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
     console.warn("Runtime config unavailable, using environment variables:", error?.message || error);
     markFirebaseCredentialsUnavailable();
     // Fallback to process.env for critical values
-    cached = buildEnvFallback();
+    cached = buildEnvFallback(localConfig);
     lastFetched = Date.now();
     return cached;
   } finally {
