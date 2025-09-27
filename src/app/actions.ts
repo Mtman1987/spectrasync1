@@ -11,6 +11,8 @@ import { cookies } from 'next/headers';
 import { getSessionOptions, type SessionData } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { sanitizeForLog } from '@/lib/sanitize';
+import { getFallbackAdminProfile, setFallbackAdminProfile } from '@/lib/admin-fallback-store';
+import { isFirebaseUnavailableError } from '@/lib/firebase-admin';
 
 // Helper to get Firebase admin DB with dynamic import
 async function getDb() {
@@ -162,13 +164,22 @@ export async function saveAdminInfo(discordId: string, data: any) {
   if (!discordId) {
     return { success: false, error: "Discord ID is required." };
   }
+  const normalizedData = data && typeof data === 'object' ? data : {};
   try {
     const adminDb = await getDb();
     const adminRef = adminDb.collection('admins').doc(discordId);
     await adminRef.set(data, { merge: true });
+    setFallbackAdminProfile(discordId, normalizedData, { merge: true });
     return { success: true };
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : String(e);
+    if (isFirebaseUnavailableError(e)) {
+      setFallbackAdminProfile(discordId, normalizedData, { merge: true });
+      console.info(
+        `[saveAdminInfo] Firebase unavailable, storing admin profile for ${sanitizeForLog(discordId)} in memory.`,
+      );
+      return { success: true, warning: 'Firebase unavailable, changes stored in memory only.' };
+    }
     return { success: false, error: errorMessage };
   }
 }
@@ -180,6 +191,8 @@ export async function getAdminInfo(discordId: string): Promise<{ value: any | nu
   if (!discordId) {
     return { value: null, error: "Discord ID is required." };
   }
+  const fallbackProfile = getFallbackAdminProfile(discordId);
+
   try {
     const adminDb = await getDb();
     const docRef = adminDb.collection('admins').doc(discordId);
@@ -187,14 +200,30 @@ export async function getAdminInfo(discordId: string): Promise<{ value: any | nu
 
     if (!doc.exists) {
       console.log(`Admin document does not exist at path: ${sanitizeForLog(docRef.path)}`);
+      if (fallbackProfile) {
+        return { value: fallbackProfile };
+      }
       return { value: null };
     }
 
-    return { value: doc.data() || null };
+    const data = doc.data() || null;
+    if (data) {
+      setFallbackAdminProfile(discordId, data, { merge: false });
+    }
+    return { value: data };
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : String(e);
+    if (isFirebaseUnavailableError(e)) {
+      if (fallbackProfile) {
+        return { value: fallbackProfile };
+      }
+      console.warn(
+        `[getAdminInfo] Firebase unavailable for ${sanitizeForLog(discordId)}. Returning in-memory data if available.`,
+      );
+      return { value: null };
+    }
     console.error(`Error getting admin info for discordId ${sanitizeForLog(discordId)}:`, sanitizeForLog(errorMessage));
-    return { value: null, error: errorMessage };
+    return { value: fallbackProfile ?? null, error: errorMessage };
   }
 }
 

@@ -1,6 +1,6 @@
 // src/app/api/auth/discord/route.ts
 import { type NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "crypto";
+import { generateDiscordState } from "@/lib/discord-oauth-state";
 
 export const dynamic = 'force-dynamic';
 import { getRuntimeValue } from "@/lib/runtime-config";
@@ -29,8 +29,8 @@ async function resolveBaseUrl(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-    // Generate a random state for CSRF protection
-    const state = randomBytes(16).toString('hex');
+    // Generate a signed state token for CSRF protection
+    const state = await generateDiscordState();
 
     const baseUrl = await resolveBaseUrl(request);
     const redirectUri =
@@ -50,7 +50,13 @@ export async function GET(request: NextRequest) {
 
     // Store the state in a cookie to verify it on callback
     const response = NextResponse.redirect(discordAuthUrl.toString());
-    response.cookies.set('discord_oauth_state', state, { path: '/', httpOnly: true, maxAge: 300 }); // Expires in 5 minutes
+    response.cookies.set('discord_oauth_state', state, {
+        path: '/',
+        httpOnly: true,
+        maxAge: 600,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+    });
 
     return response;
 }

@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { getSession } from './actions';
 import { redirect } from 'next/navigation';
+import { isRedirectError } from 'next/dist/client/components/redirect';
 
 async function HomePage() {
   try {
@@ -34,6 +35,10 @@ async function HomePage() {
       </div>
     );
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     console.error('Home page error:', error);
     
     // Fallback UI when services are unavailable
