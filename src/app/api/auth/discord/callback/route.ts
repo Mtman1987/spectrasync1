@@ -8,6 +8,7 @@ import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { getSessionOptions, type SessionData } from '@/lib/session';
 import { isValidUrl } from '@/lib/sanitize';
+import { validateDiscordState } from '@/lib/discord-oauth-state';
 
 const DEFAULT_BASE_URL = "https://spacemtn--cosmic-raid-app.us-central1.hosted.app";
 
@@ -42,8 +43,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL('/?error=Missing authorization code', baseUrl));
     }
 
-    if (!state || !storedState || state !== storedState) {
-        return NextResponse.redirect(new URL('/?error=Invalid state parameter. Please try again.', baseUrl));
+    const stateIsValid = await validateDiscordState(state, storedState);
+    if (!stateIsValid) {
+        const invalidStateRedirect = NextResponse.redirect(new URL('/?error=Invalid state parameter. Please try again.', baseUrl));
+        invalidStateRedirect.cookies.delete('discord_oauth_state');
+        return invalidStateRedirect;
     }
 
     try {
@@ -129,13 +133,17 @@ export async function GET(request: NextRequest) {
         await session.save();
         
         // Redirect directly to the dashboard
-        return NextResponse.redirect(new URL('/dashboard', baseUrl));
+        const successResponse = NextResponse.redirect(new URL('/dashboard', baseUrl));
+        successResponse.cookies.delete('discord_oauth_state');
+        return successResponse;
 
     } catch (e) {
         console.error("Discord callback error:", e);
         const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
-    const errorRedirectUrl = new URL('/', baseUrl);
+        const errorRedirectUrl = new URL('/', baseUrl);
         errorRedirectUrl.searchParams.set('error', errorMessage);
-        return NextResponse.redirect(errorRedirectUrl);
+        const errorResponse = NextResponse.redirect(errorRedirectUrl);
+        errorResponse.cookies.delete('discord_oauth_state');
+        return errorResponse;
     }
 }

@@ -173,6 +173,21 @@ import { getRuntimeValue } from "@/lib/runtime-config";
 const baseUrl = await getRuntimeValue<string>("NEXT_PUBLIC_BASE_URL", process.env.NEXT_PUBLIC_BASE_URL);
 ```
 
+### Developing without Firebase runtime config
+
+If you do not have access to the hosted Firestore runtime document you can supply the same values locally. Create a JSON file named `runtime-config.local.json` (or set `RUNTIME_CONFIG_PATH` to point to a custom file) in the project root with the keys you need:
+
+```json
+{
+  "NEXT_PUBLIC_BASE_URL": "http://localhost:3000",
+  "DISCORD_CLIENT_ID": "123",
+  "DISCORD_CLIENT_SECRET": "abc",
+  "BOT_SECRET_KEY": "super-secret-key"
+}
+```
+
+At runtime the helper in `src/lib/runtime-config.ts` merges values from this file with any environment variables so your local development environment behaves like production even without Firebase credentials. The loader also looks for `runtime-config.json`, `config/runtime-config.json`, or `.runtime-config.json` if you prefer a different filename.
+
 Security reminder: keep `BOT_SECRET_KEY` secret; do not commit it to source control.
 
 ---

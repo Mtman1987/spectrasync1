@@ -1,7 +1,135 @@
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+
 let cached: Record<string, unknown> | null = null;
 let lastFetched = 0;
 let isInitializing = false;
 const CACHE_TTL_MS = 30_000; // 30 seconds cache
+
+let missingCredentialWarningShown = false;
+let hasLoggedLocalConfigSource = false;
+
+const ENV_FALLBACK_KEYS = [
+  "BOT_SECRET_KEY",
+  "DISCORD_BOT_TOKEN",
+  "DISCORD_CLIENT_ID",
+  "DISCORD_CLIENT_SECRET",
+  "FIREBASE_PROJECT_ID",
+  "FREE_CONVERT_API_KEY",
+  "NEXT_PUBLIC_BASE_URL",
+  "NEXT_PUBLIC_DISCORD_CLIENT_ID",
+  "SESSION_SECRET",
+  "TWITCH_CLIENT_ID",
+  "TWITCH_CLIENT_SECRET",
+];
+
+const LOCAL_CONFIG_CANDIDATES = [
+  process.env.RUNTIME_CONFIG_PATH,
+  "runtime-config.local.json",
+  "runtime-config.json",
+  path.join("config", "runtime-config.json"),
+  ".runtime-config.json",
+];
+
+let localConfigCache: Record<string, unknown> | null = null;
+let localConfigResolved = false;
+
+function loadLocalRuntimeConfig(): Record<string, unknown> | null {
+  if (localConfigResolved) {
+    return localConfigCache;
+  }
+
+  localConfigResolved = true;
+
+  for (const candidate of LOCAL_CONFIG_CANDIDATES) {
+    if (!candidate) {
+      continue;
+    }
+
+    const resolvedPath = path.isAbsolute(candidate)
+      ? candidate
+      : path.resolve(process.cwd(), candidate);
+
+    if (!existsSync(resolvedPath)) {
+      continue;
+    }
+
+    try {
+      const contents = readFileSync(resolvedPath, "utf8");
+      const parsed = JSON.parse(contents) as Record<string, unknown>;
+      if (parsed && typeof parsed === "object") {
+        localConfigCache = parsed;
+        if (!hasLoggedLocalConfigSource) {
+          console.info(
+            `[runtime-config] Loaded local runtime config from ${resolvedPath}. Set RUNTIME_CONFIG_PATH to override.`,
+          );
+          hasLoggedLocalConfigSource = true;
+        }
+        return localConfigCache;
+      }
+    } catch (error) {
+      console.warn(
+        `[runtime-config] Failed to parse local runtime config at ${resolvedPath}. Falling back to environment variables.`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+
+  return localConfigCache;
+}
+
+function buildEnvFallback(): Record<string, unknown> {
+  const localConfig = loadLocalRuntimeConfig();
+  const fallback: Record<string, unknown> = localConfig ? { ...localConfig } : {};
+
+  for (const key of ENV_FALLBACK_KEYS) {
+    if (process.env[key] !== undefined) {
+      fallback[key] = process.env[key];
+    }
+  }
+
+  return fallback;
+}
+
+export function hasFirebaseCredentials(): boolean {
+  if (process.env.FIREBASE_RUNTIME_FORCE === "1") {
+    return true;
+  }
+
+  if (process.env.FIREBASE_RUNTIME_DISABLED === "1") {
+    return false;
+  }
+
+  const hasInlineCredentials = Boolean(
+    process.env.FIREBASE_ADMIN_SDK_JSON ||
+      process.env.FIREBASE_SERVICE_ACCOUNT ||
+      process.env.FIREBASE_ADMIN_SDK_JSON_BASE64 ||
+      process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
+  );
+
+  if (hasInlineCredentials) {
+    return true;
+  }
+
+  const hasCredentialPath = Boolean(
+    process.env.FIREBASE_ADMIN_SDK_PATH || process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  );
+
+  if (hasCredentialPath) {
+    return true;
+  }
+
+  const runningOnGoogleCloud = Boolean(
+    process.env.K_SERVICE ||
+      process.env.FUNCTION_TARGET ||
+      process.env.GAE_SERVICE ||
+      process.env.GOOGLE_CLOUD_PROJECT ||
+      process.env.GCLOUD_PROJECT ||
+      process.env.FIREBASE_CONFIG,
+  );
+
+  return runningOnGoogleCloud;
+}
 
 export async function fetchRuntimeConfig(force = false): Promise<Record<string, unknown>> {
   const now = Date.now();
@@ -11,7 +139,19 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
 
   // Skip Firebase calls during build phase or if already initializing (prevents circular dependency)
   if (process.env.NEXT_PHASE === 'phase-production-build' || isInitializing) {
-    return cached || {};
+    return cached || buildEnvFallback();
+  }
+
+  if (!hasFirebaseCredentials()) {
+    if (!missingCredentialWarningShown) {
+      console.info(
+        "Firebase credentials not detected. Skipping runtime config fetch and using environment variables instead.",
+      );
+      missingCredentialWarningShown = true;
+    }
+    cached = buildEnvFallback();
+    lastFetched = Date.now();
+    return cached;
   }
 
   isInitializing = true;
@@ -30,12 +170,8 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
   } catch (error) {
     console.warn("Runtime config unavailable, using environment variables:", error?.message || error);
     // Fallback to process.env for critical values
-    cached = {
-      BOT_SECRET_KEY: process.env.BOT_SECRET_KEY,
-      DISCORD_BOT_TOKEN: process.env.DISCORD_BOT_TOKEN,
-      FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
-      SESSION_SECRET: process.env.SESSION_SECRET
-    };
+    cached = buildEnvFallback();
+    lastFetched = Date.now();
     return cached;
   } finally {
     isInitializing = false;
