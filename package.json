@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --port 9002 --hostname 0.0.0.0",
-    "dev:next": "next dev --port 9002 --hostname 0.0.0.0",
-    "dev:web": "npm run dev:next",
+    "dev:web": "npm run dev",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
