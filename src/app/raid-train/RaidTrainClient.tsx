@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Train, Crown, CalendarDays, Loader2, Link2 } from "lucide-react";
-import { AppLayout } from "@/components/layout/app-layout";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "next/navigation";
@@ -27,6 +26,7 @@ import { RaidTrainSettingsForm } from './raid-train-settings-form';
 import { AttendanceCard } from '../dashboard/attendance-card';
 import { Input } from "@/components/ui/input";
 import { getSettings } from '@/app/settings/actions';
+import { useCommunity } from "@/context/community-context";
 
 function QuickLinkCard({ guildId }: { guildId: string | null }) {
     const { toast } = useToast();
@@ -65,20 +65,11 @@ function QuickLinkCard({ guildId }: { guildId: string | null }) {
     );
 }
 
-interface AdminProfile {
-  discordInfo: { id: string; username: string; avatar: string | null; };
-  twitchInfo?: any;
-}
-interface AdminGuild { id: string; name: string; icon: string | null; }
-
 interface RaidTrainClientProps {
     guildId: string | null;
-    adminProfile: AdminProfile | null;
-    adminGuilds: AdminGuild[];
-    selectedGuild: string | null;
 }
 
-export default function RaidTrainClient({ guildId, adminProfile, adminGuilds, selectedGuild }: RaidTrainClientProps) {
+export default function RaidTrainClient({ guildId }: RaidTrainClientProps) {
     const searchParams = useSearchParams();
     const { toast } = useToast();
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -87,7 +78,6 @@ export default function RaidTrainClient({ guildId, adminProfile, adminGuilds, se
     const [isLoading, setIsLoading] = useState(true);
     const [liveUsers, setLiveUsers] = useState<LiveUser[]>([]);
     const [parentDomain, setParentDomain] = useState("");
-    const isEmbedded = searchParams.has("frame_id");
     const [isPending, startTransition] = useTransition();
     
     useEffect(() => {
@@ -214,10 +204,6 @@ export default function RaidTrainClient({ guildId, adminProfile, adminGuilds, se
             </div>
         </div>
     );
-
-    if (isEmbedded) {
-        return pageContent;
-    }
     
-    return <AppLayout adminProfile={adminProfile} adminGuilds={adminGuilds} selectedGuild={selectedGuild}>{pageContent}</AppLayout>
+    return pageContent;
 }

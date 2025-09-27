@@ -19,7 +19,7 @@ export default async function CommunityPoolPage({ searchParams }: PageProps) {
 
   if (!guildId) {
     return (
-      <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId}>
+      <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId} notifications={[]}>
         <div className="text-center py-8 text-muted-foreground">
           Please select a community in your settings to view the community pool.
         </div>
@@ -44,7 +44,7 @@ export default async function CommunityPoolPage({ searchParams }: PageProps) {
   }
 
   return (
-    <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId}>
+    <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId} notifications={[]}>
       {pageContent}
     </AppLayout>
   );

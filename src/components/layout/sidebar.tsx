@@ -1,8 +1,8 @@
-'use client';
+
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTransition } from "react";
 import {
   Sidebar,
   SidebarHeader,
@@ -26,12 +26,12 @@ import {
   Settings,
 } from "lucide-react";
 import { UserNav } from "./user-nav";
-import { Separator } from "../ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { useSidebar } from "../ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "../ui/skeleton";
-import { updateSelectedGuild } from "@/app/actions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCommunity } from "@/context/community-context";
 
 const menuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -49,29 +49,14 @@ const bottomMenuItems = [
     { href: "/settings", label: "Settings", icon: Settings },
 ]
 
-// Prop types from app-layout
-interface AdminProfile {
-  discordInfo: { id: string; username: string; avatar: string | null; };
-  twitchInfo?: any;
-}
-interface AdminGuild { id: string; name: string; icon: string | null; }
-
-interface AppSidebarProps {
-    adminProfile: AdminProfile | null;
-    adminGuilds: AdminGuild[];
-    selectedGuild: string | null;
-}
-
-export function AppSidebar({ adminProfile, adminGuilds, selectedGuild }: AppSidebarProps) {
+export function AppSidebar() {
   const pathname = usePathname();
   const { state } = useSidebar();
-  const [isPending, startTransition] = useTransition();
+  const { selectedGuild, setSelectedGuild, loading, adminGuilds } = useCommunity();
   
   const handleGuildChange = (newGuildId: string) => {
       if (newGuildId !== selectedGuild) {
-        startTransition(async () => {
-            await updateSelectedGuild(newGuildId);
-        });
+        setSelectedGuild(newGuildId);
       }
   }
 
@@ -126,7 +111,7 @@ export function AppSidebar({ adminProfile, adminGuilds, selectedGuild }: AppSide
             })}
         </SidebarMenu>
         <div className={cn(state === 'collapsed' && 'hidden')}>
-            {isPending ? (
+            {loading ? (
                 <Skeleton className="h-9 w-full" />
             ) : (
                 <Select value={selectedGuild || undefined} onValueChange={handleGuildChange} disabled={!adminGuilds || adminGuilds.length === 0}>
@@ -147,7 +132,7 @@ export function AppSidebar({ adminProfile, adminGuilds, selectedGuild }: AppSide
             )}
         </div>
         <Separator />
-        <UserNav adminProfile={adminProfile} />
+        <UserNav />
       </SidebarFooter>
     </Sidebar>
   );

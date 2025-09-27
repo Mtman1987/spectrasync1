@@ -20,7 +20,7 @@ export default async function VipLivePage({ searchParams }: PageProps) {
 
   if (!guildId) {
     return (
-      <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId}>
+      <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId} notifications={[]}>
         <div className="text-center py-8 text-muted-foreground">
           Please select a community in your settings to manage VIPs.
         </div>
@@ -50,7 +50,7 @@ export default async function VipLivePage({ searchParams }: PageProps) {
   }
 
   return (
-    <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId}>
+    <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId} notifications={[]}>
       {pageContent}
     </AppLayout>
   );

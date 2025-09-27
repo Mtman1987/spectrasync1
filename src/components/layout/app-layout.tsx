@@ -1,10 +1,11 @@
-'use client'
+'use client';
 
-import type { ReactNode } from "react";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "./sidebar";
-import { AppHeader } from "./header";
-import { ScrollArea } from "../ui/scroll-area";
+import type { ReactNode } from 'react';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { AppSidebar } from './sidebar';
+import { AppHeader } from './header';
+import { ScrollArea } from '../ui/scroll-area';
+import { CommunityProvider } from '@/context/community-context';
 
 // Define types for the props
 interface AdminProfile {
@@ -27,24 +28,35 @@ interface AppLayoutProps {
   adminProfile: AdminProfile | null;
   adminGuilds: AdminGuild[];
   selectedGuild: string | null;
+  notifications: any[];
 }
 
-export function AppLayout({ children, adminProfile, adminGuilds, selectedGuild }: AppLayoutProps) {
+export function AppLayout({
+  children,
+  adminProfile,
+  adminGuilds,
+  selectedGuild,
+  notifications,
+}: AppLayoutProps) {
   return (
-    <SidebarProvider>
-      <div className="flex min-h-svh w-full bg-background">
-        <AppSidebar adminGuilds={adminGuilds} selectedGuild={selectedGuild} adminProfile={adminProfile} />
-        <div className="flex flex-1 flex-col">
-            <AppHeader adminGuilds={adminGuilds} selectedGuild={selectedGuild} adminProfile={adminProfile} />
+    <CommunityProvider
+      initialAdminId={adminProfile?.discordInfo?.id ?? null}
+      initialSelectedGuild={selectedGuild}
+      initialAdminGuilds={adminGuilds}
+    >
+      <SidebarProvider>
+        <div className="flex min-h-svh w-full bg-background">
+          <AppSidebar />
+          <div className="flex flex-1 flex-col">
+            <AppHeader initialNotifications={notifications} />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <ScrollArea className="flex-1">
-                    <main className="p-4 sm:p-6 lg:p-8">
-                      {children}
-                    </main>
-                </ScrollArea>
+              <ScrollArea className="flex-1">
+                <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+              </ScrollArea>
             </div>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </CommunityProvider>
   );
 }

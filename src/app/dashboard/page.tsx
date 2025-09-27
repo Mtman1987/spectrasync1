@@ -18,7 +18,7 @@ export default async function DashboardPage() {
 
   if (!adminInfo) {
     return (
-       <AppLayout adminProfile={adminInfo} adminGuilds={adminGuilds} selectedGuild={selectedGuildId}>
+       <AppLayout adminProfile={adminInfo} adminGuilds={adminGuilds} selectedGuild={selectedGuildId} notifications={[]}>
             <div className="flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                 <h2 className="text-xl font-semibold mb-2">Loading Profile...</h2>
@@ -30,7 +30,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <AppLayout adminProfile={adminInfo} adminGuilds={adminGuilds} selectedGuild={selectedGuildId}>
+    <AppLayout adminProfile={adminInfo} adminGuilds={adminGuilds} selectedGuild={selectedGuildId} notifications={[]}>
         <div className="space-y-6">
         <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>

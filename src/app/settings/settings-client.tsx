@@ -3,7 +3,6 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -80,7 +79,7 @@ function AddWebhookForm({ guildId, onWebhookAdded }: { guildId: string, onWebhoo
 }
 
 
-function GifTestCard({ guildId }: { guildId: string }) {
+function GifTestCard({ guildId }: { guildId: string | null }) {
     const { toast } = useToast();
     const [mp4Url, setMp4Url] = useState('');
     const [webhooks, setWebhooks] = useState<WebhookType[]>([]);
@@ -208,7 +207,7 @@ function GifTestCard({ guildId }: { guildId: string }) {
         </Card>
     );
 }
-function WebhooksList({ guildId }: { guildId: string }) {
+function WebhooksList({ guildId }: { guildId: string | null }) {
     const { toast } = useToast();
     const [webhooks, setWebhooks] = useState<WebhookType[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -267,13 +266,13 @@ function WebhooksList({ guildId }: { guildId: string }) {
                 </div>
             </CardContent>
             <CardFooter>
-                <AddWebhookForm guildId={guildId} onWebhookAdded={fetchWebhooks} />
+                {guildId && <AddWebhookForm guildId={guildId} onWebhookAdded={fetchWebhooks} />}
             </CardFooter>
         </Card>
     );
 }
 
-function LinkConfigForm({ guildId }: { guildId: string }) {
+function LinkConfigForm({ guildId }: { guildId: string | null }) {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
     const [baseUrl, setBaseUrl] = useState("http://localhost:9002");
@@ -331,7 +330,7 @@ function LinkConfigForm({ guildId }: { guildId: string }) {
     );
 }
 
-function DevToolsCard({ guildId, adminId }: { guildId: string, adminId: string | null }) {
+function DevToolsCard({ guildId, adminId }: { guildId: string | null, adminId: string | null }) {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
 
@@ -367,55 +366,53 @@ function DevToolsCard({ guildId, adminId }: { guildId: string, adminId: string |
 }
 
 
-export function SettingsClientPage({ guildId, adminId, initialCommunityInfo }: { guildId: string, adminId: string | null, initialCommunityInfo: any }) {
+export function SettingsClientPage({ guildId, adminId, initialCommunityInfo }: { guildId: string | null, adminId: string | null, initialCommunityInfo: any }) {
     const router = useRouter();
     const [adminProfile, setAdminProfile] = useState<any>(null);
 
-    const fetchAdminProfile = async (id: string) => {
+    const fetchAdminProfile = useCallback(async (id: string) => {
         const { value } = await getAdminInfo(id);
         setAdminProfile(value);
-    }
+    }, []);
     
     useEffect(() => {
         if (adminId) {
             fetchAdminProfile(adminId);
         }
-    }, [adminId]);
+    }, [adminId, fetchAdminProfile]);
     
     const handleLinkDiscord = () => {
         router.push(`/api/auth/discord`);
     };
 
     return (
-        <AppLayout>
-            <div className="flex flex-col gap-8">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-3">
-                        <Settings className="h-8 w-8 text-primary" />
-                        Settings
-                    </h1>
-                    <p className="text-muted-foreground max-w-2xl">
-                        Configure your community, authentication, and integration settings.
-                    </p>
-                </div>
-                
-                 <div className="grid gap-6 lg:grid-cols-2">
-                     <AdminAccountCard
-                        adminId={adminId}
-                        discordInfo={adminProfile?.discordInfo ?? null}
-                        twitchInfo={adminProfile?.twitchInfo ?? null}
-                        onTwitchChanged={adminId ? () => fetchAdminProfile(adminId) : undefined}
-                        onDiscordRelink={handleLinkDiscord}
-                    />
-
-                    <PointSystemForm guildId={guildId} />
-                    <ClipSettingsForm guildId={guildId} />
-                    <LinkConfigForm guildId={guildId} />
-                    <WebhooksList guildId={guildId} />
-                    <GifTestCard guildId={guildId} />
-                    <DevToolsCard guildId={guildId} adminId={adminId} />
-                </div>
+        <div className="flex flex-col gap-8">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-3">
+                    <Settings className="h-8 w-8 text-primary" />
+                    Settings
+                </h1>
+                <p className="text-muted-foreground max-w-2xl">
+                    Configure your community, authentication, and integration settings.
+                </p>
             </div>
-        </AppLayout>
+            
+             <div className="grid gap-6 lg:grid-cols-2">
+                 <AdminAccountCard
+                    adminId={adminId}
+                    discordInfo={adminProfile?.discordInfo ?? null}
+                    twitchInfo={adminProfile?.twitchInfo ?? null}
+                    onTwitchChanged={adminId ? () => fetchAdminProfile(adminId) : undefined}
+                    onDiscordRelink={handleLinkDiscord}
+                />
+
+                <PointSystemForm guildId={guildId} />
+                <ClipSettingsForm guildId={guildId} />
+                <LinkConfigForm guildId={guildId} />
+                <WebhooksList guildId={guildId} />
+                <GifTestCard guildId={guildId} />
+                <DevToolsCard guildId={guildId} adminId={adminId} />
+            </div>
+        </div>
     );
 }

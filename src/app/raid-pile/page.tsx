@@ -31,7 +31,7 @@ export default async function RaidPilePage({ searchParams }: PageProps) {
     }
 
     return (
-        <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId}>
+        <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId} notifications={[]}>
             {content}
         </AppLayout>
     );
@@ -55,7 +55,7 @@ export default async function RaidPilePage({ searchParams }: PageProps) {
   }
 
   return (
-    <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId}>
+    <AppLayout adminProfile={adminData} adminGuilds={adminGuilds} selectedGuild={guildId} notifications={[]}>
         {pageContent}
     </AppLayout>
   );

@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AppLayout } from "@/components/layout/app-layout";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEffect, useState, useRef, useTransition, useCallback } from "react";
 import { sendMessage, type ChatMessage } from "@/app/team-chat/actions";
@@ -18,6 +17,7 @@ import { getClientApp } from "@/lib/firebase";
 import Image from 'next/image';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
+import { useCommunity } from "@/context/community-context";
 
 function ChatMessageContent({ message }: { message: string }) {
     const isGif = message.match(/\.(gif)$/i);
@@ -38,8 +38,7 @@ function ChatMessageContent({ message }: { message: string }) {
 }
 
 export default function TeamChatClient() {
-    const [guildId, setGuildId] = useState<string | null>(null);
-    const [adminDiscordId, setAdminDiscordId] = useState<string | null>(null);
+    const { selectedGuild: guildId, adminId: adminDiscordId } = useCommunity();
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [isPending, startTransition] = useTransition();
@@ -64,17 +63,12 @@ export default function TeamChatClient() {
     }, []);
 
     useEffect(() => {
-        const selectedGuildId = localStorage.getItem('selectedGuildId');
-        const adminId = localStorage.getItem('adminDiscordId');
-        setGuildId(selectedGuildId);
-        setAdminDiscordId(adminId);
-
-        if (!selectedGuildId) {
+        if (!guildId) {
             setIsLoading(false);
             return;
         }
 
-        fetchWebhooks(selectedGuildId);
+        fetchWebhooks(guildId);
         const app = getClientApp();
         if (!app) {
             setIsLoading(false);
@@ -82,7 +76,7 @@ export default function TeamChatClient() {
         }
         
         const db = getFirestore(app);
-        const q = query(collection(db, `communities/${selectedGuildId}/chat`), orderBy("timestamp", "asc"));
+        const q = query(collection(db, `communities/${guildId}/chat`), orderBy("timestamp", "asc"));
 
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const newMessages: ChatMessage[] = [];
@@ -109,7 +103,7 @@ export default function TeamChatClient() {
         });
 
         return () => unsubscribe();
-    }, [isLoading, toast, fetchWebhooks]);
+    }, [guildId, isLoading, toast, fetchWebhooks]);
 
      useEffect(() => {
         scrollToBottom();
@@ -151,7 +145,6 @@ export default function TeamChatClient() {
     }
 
   return (
-    <AppLayout>
       <div className="flex flex-col gap-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-3">
@@ -251,6 +244,5 @@ export default function TeamChatClient() {
         </Accordion>
 
       </div>
-    </AppLayout>
   );
 }

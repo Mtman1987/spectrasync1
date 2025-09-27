@@ -142,7 +142,7 @@ function CalendarPageContent({
   }
 
   return (
-    <AppLayout adminProfile={adminProfile} adminGuilds={adminGuilds} selectedGuild={selectedGuild}>
+    <AppLayout adminProfile={adminProfile} adminGuilds={adminGuilds} selectedGuild={selectedGuild} notifications={[]}>
         {pageContent}
     </AppLayout>
   );

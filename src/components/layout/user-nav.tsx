@@ -1,53 +1,76 @@
-'use client';
 
-import { useTransition } from "react";
+"use client";
+
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-    Avatar,
-    AvatarFallback,
-    AvatarImage,
-  } from "@/components/ui/avatar"
-  import { Button } from "@/components/ui/button"
-  import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-  } from "@/components/ui/dropdown-menu"
-import { useSidebar } from "../ui/sidebar";
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "../ui/skeleton";
-import { logout } from "@/app/actions";
+import { getAdminInfo } from "@/app/actions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCommunity } from "@/context/community-context";
 
-// Define types for the props
-interface AdminProfile {
-  discordInfo: {
+type UserProfile = {
+  discordInfo?: {
     id: string;
     username: string;
-    avatar: string | null;
+    avatar: string;
   };
-  twitchInfo?: any;
+  twitchInfo?: {
+    id: string;
+    login: string;
+    displayName: string;
+    avatar: string;
+  };
 }
 
-interface UserNavProps {
-    adminProfile: AdminProfile | null;
-}
-
-export function UserNav({ adminProfile }: UserNavProps) {
+export function UserNav() {
   const router = useRouter();
   const { state } = useSidebar();
-  const [isPending, startTransition] = useTransition();
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const { adminId, loading: communityLoading, setAdminId, setSelectedGuild } = useCommunity();
+    
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (adminId) {
+        const { value } = await getAdminInfo(adminId);
+        if (value) {
+            setUser(value);
+        } else {
+            setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+
+    if (!communityLoading) {
+        fetchUser();
+    }
+  }, [adminId, communityLoading]);
 
   const handleLogout = () => {
-    startTransition(async () => {
-      await logout();
-      router.push('/');
-    });
-  };
+    // Clear the context state, which will also clear localStorage
+    setAdminId(null);
+    setSelectedGuild(null);
+    // The redirect will be handled by the page logic now
+    router.push('/');
+  }
 
-  if (!adminProfile) {
+  if (communityLoading) {
     return (
       <div className="flex items-center gap-2 p-2">
         <Skeleton className="h-8 w-8 rounded-full" />
@@ -59,30 +82,21 @@ export function UserNav({ adminProfile }: UserNavProps) {
     )
   }
 
-  const { discordInfo, twitchInfo } = adminProfile;
-
-  if (!discordInfo) {
-     return (
-      <Button
-        variant="ghost"
-        className={cn("flex items-center gap-2 p-2 w-full h-auto", state === 'collapsed' && 'w-auto aspect-square justify-center h-10')}
-        onClick={() => router.push('/api/auth/discord')}
-      >
-        <span className={cn(state === 'collapsed' && 'hidden')}>Link Discord</span>
-      </Button>
-     );
+  if (!user?.discordInfo) {
+     return null;
   }
     
-  const displayName = twitchInfo?.displayName || discordInfo.username;
-  const displaySubtext = twitchInfo ? `@${twitchInfo.login}` : discordInfo.username;
-  const displayAvatar = twitchInfo?.avatar || discordInfo.avatar;
+  const displayUser = user.discordInfo;
+  const displayName = user.twitchInfo?.displayName || displayUser.username;
+  const displaySubtext = user.twitchInfo?.login || user.discordInfo.username;
+  const displayAvatar = user.twitchInfo?.avatar || displayUser.avatar;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
           <Button variant="ghost" className={cn("flex items-center gap-2 p-2 w-full h-auto", state === 'collapsed' && 'w-auto aspect-square justify-center h-10')}>
               <Avatar className={cn(state === 'collapsed' && 'h-8 w-8')}>
-                  <AvatarImage src={displayAvatar || ''} data-ai-hint="person avatar" alt={displayName} />
+                  <AvatarImage src={displayAvatar || undefined} data-ai-hint="person avatar" alt={displayName} />
                   <AvatarFallback>{displayName.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className={cn("flex flex-col items-start", state === 'collapsed' && 'hidden')}>
@@ -94,7 +108,6 @@ export function UserNav({ adminProfile }: UserNavProps) {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel>My Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push('/settings')}>Account Settings</DropdownMenuItem>
         <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
