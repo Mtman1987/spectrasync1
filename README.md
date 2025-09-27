@@ -23,7 +23,7 @@ This section covers everything you need to know to get your community set up and
 
 ### 1. Initial Setup & Configuration
 
--- **Run the App**:
+- **Run the App**:
 
   ```bash
   npm run dev
@@ -95,7 +95,7 @@ This project relies on a set of environment variables for bot credentials, API k
 
 Minimum required environment variables:
 
--- `NEXT_PUBLIC_BASE_URL` - The public URL of your deployed app (example: `https://spacemtn--cosmic-raid-app.us-central1.hosted.app/`). Used for OAuth callbacks and links.
+- `NEXT_PUBLIC_BASE_URL` - The public URL of your deployed app (example: `https://spacemtn--cosmic-raid-app.us-central1.hosted.app/`). Used for OAuth callbacks and links.
 - `BOT_SECRET_KEY` - Secret key used between your tools and the API endpoints (`x-bot-secret` or Authorization header). Keep this secret.
 - `DISCORD_BOT_TOKEN` - Your Discord bot token used to post/delete messages.
 - `FREE_CONVERT_API_KEY` - (Optional) API key for FreeConvert if you use the online GIF converter.
@@ -118,7 +118,7 @@ Local development:
 
 1. Copy `.env.example` to `.env` and fill in your values.
 
-1. From PowerShell (repo root) run:
+2. From PowerShell (repo root) run:
 
 ```powershell
 .\scripts\dev-with-tunnel.ps1

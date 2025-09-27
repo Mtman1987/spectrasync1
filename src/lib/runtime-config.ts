@@ -10,11 +10,8 @@ let isInitializing = false;
 const CACHE_TTL_MS = 30_000; // 30 seconds cache
 
 let missingCredentialWarningShown = false;
-<<<<<<< HEAD
 let hasLoggedLocalConfigSource = false;
 let firebaseCredentialState: FirebaseCredentialState = "unknown";
-=======
->>>>>>> 2bbd1dd10be4704198c25cd99ed2a4882e6c36a0
 
 const ENV_FALLBACK_KEYS = [
   "BOT_SECRET_KEY",
@@ -30,7 +27,6 @@ const ENV_FALLBACK_KEYS = [
   "TWITCH_CLIENT_SECRET",
 ];
 
-<<<<<<< HEAD
 const LOCAL_CONFIG_CANDIDATES = [
   process.env.RUNTIME_CONFIG_PATH,
   "runtime-config.local.json",
@@ -103,17 +99,11 @@ function loadLocalRuntimeConfig(): Record<string, unknown> | null {
 function buildEnvFallback(seed?: Record<string, unknown> | null): Record<string, unknown> {
   const localConfig = seed ?? loadLocalRuntimeConfig();
   const fallback: Record<string, unknown> = localConfig ? { ...localConfig } : {};
-
-=======
-function buildEnvFallback(): Record<string, unknown> {
-  const fallback: Record<string, unknown> = {};
->>>>>>> 2bbd1dd10be4704198c25cd99ed2a4882e6c36a0
   for (const key of ENV_FALLBACK_KEYS) {
     if (process.env[key] !== undefined) {
       fallback[key] = process.env[key];
     }
   }
-<<<<<<< HEAD
 
   return fallback;
 }
@@ -154,21 +144,11 @@ export function hasFirebaseCredentials(): boolean {
 
   if (process.env.FIREBASE_RUNTIME_FORCE === "1") {
     markFirebaseCredentialsAvailable();
-=======
-  return fallback;
-}
-
-function hasFirebaseCredentials(): boolean {
-  if (process.env.FIREBASE_RUNTIME_FORCE === "1") {
->>>>>>> 2bbd1dd10be4704198c25cd99ed2a4882e6c36a0
     return true;
   }
 
   if (process.env.FIREBASE_RUNTIME_DISABLED === "1") {
-<<<<<<< HEAD
     markFirebaseCredentialsUnavailable();
-=======
->>>>>>> 2bbd1dd10be4704198c25cd99ed2a4882e6c36a0
     return false;
   }
 
@@ -200,7 +180,6 @@ function hasFirebaseCredentials(): boolean {
       process.env.FIREBASE_CONFIG,
   );
 
-<<<<<<< HEAD
   if (runningOnGoogleCloud) {
     return true;
   }
@@ -230,9 +209,6 @@ function hasFirebaseCredentials(): boolean {
   }
 
   return false;
-=======
-  return runningOnGoogleCloud;
->>>>>>> 2bbd1dd10be4704198c25cd99ed2a4882e6c36a0
 }
 
 export async function fetchRuntimeConfig(force = false): Promise<Record<string, unknown>> {
@@ -260,24 +236,16 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
 
   // Skip Firebase calls during build phase or if already initializing (prevents circular dependency)
   if (process.env.NEXT_PHASE === 'phase-production-build' || isInitializing) {
-<<<<<<< HEAD
     return cached || buildEnvFallback(localConfig);
   }
 
   if (firebaseCredentialState === "unavailable" && !force) {
-=======
-    return cached || buildEnvFallback();
-  }
-
-  if (!hasFirebaseCredentials()) {
->>>>>>> 2bbd1dd10be4704198c25cd99ed2a4882e6c36a0
     if (!missingCredentialWarningShown) {
       console.info(
         "Firebase credentials not detected. Skipping runtime config fetch and using environment variables instead.",
       );
       missingCredentialWarningShown = true;
     }
-<<<<<<< HEAD
     cached = buildEnvFallback(localConfig);
     lastFetched = Date.now();
     return cached;
@@ -296,11 +264,6 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
       );
       missingCredentialWarningShown = true;
     }
-=======
-    cached = buildEnvFallback();
-    lastFetched = Date.now();
-    return cached;
->>>>>>> 2bbd1dd10be4704198c25cd99ed2a4882e6c36a0
   }
 
   isInitializing = true;
@@ -321,12 +284,8 @@ export async function fetchRuntimeConfig(force = false): Promise<Record<string, 
     console.warn("Runtime config unavailable, using environment variables:", error?.message || error);
     markFirebaseCredentialsUnavailable();
     // Fallback to process.env for critical values
-<<<<<<< HEAD
     cached = buildEnvFallback(localConfig);
     lastFetched = Date.now();
-=======
-    cached = buildEnvFallback();
->>>>>>> 2bbd1dd10be4704198c25cd99ed2a4882e6c36a0
     return cached;
   } finally {
     isInitializing = false;
