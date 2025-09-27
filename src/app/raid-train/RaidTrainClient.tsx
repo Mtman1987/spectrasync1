@@ -26,7 +26,6 @@ import { RaidTrainSettingsForm } from './raid-train-settings-form';
 import { AttendanceCard } from '../dashboard/attendance-card';
 import { Input } from "@/components/ui/input";
 import { getSettings } from '@/app/actions';
-import { useCommunity } from "@/context/community-context";
 
 function QuickLinkCard({ guildId }: { guildId: string | null }) {
     const { toast } = useToast();

@@ -1,7 +1,5 @@
-
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Avatar,
@@ -19,9 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { getAdminInfo } from "@/app/actions";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCommunity } from "@/context/community-context";
+import { logout } from "@/app/actions";
 
 type UserProfile = {
   discordInfo?: {
@@ -37,53 +34,26 @@ type UserProfile = {
   };
 }
 
-export function UserNav() {
+export function UserNav({ user }: { user: UserProfile | null }) {
   const router = useRouter();
   const { state } = useSidebar();
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const { adminId, loading: communityLoading, setAdminId, setSelectedGuild } = useCommunity();
-    
-  useEffect(() => {
-    const fetchUser = async () => {
-      if (adminId) {
-        const { value } = await getAdminInfo(adminId);
-        if (value) {
-            setUser(value);
-        } else {
-            setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
-    };
-
-    if (!communityLoading) {
-        fetchUser();
-    }
-  }, [adminId, communityLoading]);
-
-  const handleLogout = () => {
-    // Clear the context state, which will also clear localStorage
-    setAdminId(null);
-    setSelectedGuild(null);
-    // The redirect will be handled by the page logic now
+  
+  const handleLogout = async () => {
+    await logout();
     router.push('/');
-  }
-
-  if (communityLoading) {
-    return (
-      <div className="flex items-center gap-2 p-2">
-        <Skeleton className="h-8 w-8 rounded-full" />
-        <div className={cn("flex-col gap-1", state === 'collapsed' ? 'hidden' : 'flex')}>
-           <Skeleton className="h-4 w-24" />
-           <Skeleton className="h-3 w-32" />
-        </div>
-      </div>
-    )
+    router.refresh();
   }
 
   if (!user?.discordInfo) {
-     return null;
+     return (
+        <div className="flex items-center gap-2 p-2">
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <div className={cn("flex-col gap-1", state === 'collapsed' ? 'hidden' : 'flex')}>
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+        </div>
+     );
   }
     
   const displayUser = user.discordInfo;

@@ -108,7 +108,7 @@ export default async function TeamChatPage() {
       selectedGuild={selectedGuild}
       notifications={notifications}
     >
-      <TeamChatClient />
+      <TeamChatClient guildId={selectedGuild} adminDiscordId={session.adminId} />
     </AppLayout>
   );
 }

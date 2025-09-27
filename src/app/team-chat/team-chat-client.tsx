@@ -17,7 +17,6 @@ import { getClientApp } from "@/lib/firebase";
 import Image from 'next/image';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
-import { useCommunity } from "@/context/community-context";
 
 function ChatMessageContent({ message }: { message: string }) {
     const isGif = message.match(/\.(gif)$/i);
@@ -37,8 +36,7 @@ function ChatMessageContent({ message }: { message: string }) {
     return <p className="text-muted-foreground whitespace-pre-wrap">{message}</p>;
 }
 
-export default function TeamChatClient() {
-    const { selectedGuild: guildId, adminId: adminDiscordId } = useCommunity();
+export default function TeamChatClient({ guildId, adminDiscordId }: { guildId: string | null, adminDiscordId: string | null }) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [isPending, startTransition] = useTransition();

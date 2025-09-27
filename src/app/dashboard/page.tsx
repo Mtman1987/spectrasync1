@@ -3,11 +3,15 @@ import { redirect } from 'next/navigation';
 import { getSession, getAdminInfo, getSelectedGuildId } from '@/app/actions';
 import { AdminAccountCard } from '@/components/admin-account-card';
 import { AppLayout } from '@/components/layout/app-layout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { History, Search } from 'lucide-react';
+import { getAttendanceRecord } from './actions';
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: { userId?: string } }) {
   const session = await getSession();
   
-  // The middleware now handles the redirect, but we keep this as a secondary check.
   if (!session.isLoggedIn || !session.adminId) {
     redirect('/');
   }
@@ -15,6 +19,16 @@ export default async function DashboardPage() {
   const { value: adminInfo } = await getAdminInfo(session.adminId);
   const selectedGuildId = await getSelectedGuildId(session.adminId);
   const adminGuilds = adminInfo?.discordUserGuilds ?? [];
+
+  let searchResult: string | null = null;
+  if (selectedGuildId && searchParams.userId) {
+    const result = await getAttendanceRecord(selectedGuildId, searchParams.userId);
+    if (result.success) {
+      searchResult = `${result.userName} has been in ${result.count} community raids.`;
+    } else {
+      searchResult = result.error || "An unknown error occurred.";
+    }
+  }
 
   if (!adminInfo) {
     return (
@@ -44,21 +58,38 @@ export default async function DashboardPage() {
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="p-6 border rounded-lg">
-            <h3 className="font-semibold mb-2">Quick Actions</h3>
-            <div className="space-y-2">
-                <a href="/raid-pile" className="block text-sm text-blue-600 hover:underline">
-                Manage Raid Pile
-                </a>
-                <a href="/raid-train" className="block text-sm text-blue-600 hover:underline">
-                Raid Train Schedule
-                </a>
-                <a href="/vip-live" className="block text-sm text-blue-600 hover:underline">
-                VIP Management
-                </a>
-            </div>
-            </div>
-
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-headline">
+                    <History />
+                    Raid Attendance
+                </CardTitle>
+                <CardDescription>
+                    Check a user&apos;s raid participation history by their Discord ID or Twitch ID.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <form className="flex w-full items-center space-x-2">
+                    <Input
+                        type="text"
+                        name="userId"
+                        placeholder="Enter User ID..."
+                        defaultValue={searchParams.userId}
+                    />
+                    <Button type="submit" size="icon">
+                        <Search className="h-4 w-4" />
+                        <span className="sr-only">Search</span>
+                    </Button>
+                </form>
+                
+                {searchResult && (
+                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                        <p className="font-semibold text-muted-foreground">{searchResult}</p>
+                    </div>
+                )}
+              </CardContent>
+            </Card>
+            
             <div className="p-6 border rounded-lg">
             <h3 className="font-semibold mb-2">Community</h3>
             <div className="space-y-2">

@@ -19,7 +19,7 @@ import {
 
 const MAX_HISTORY = 5;
 
-export function ContentHistory() {
+export default function ContentHistory() {
   const [history, setHistory] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
 

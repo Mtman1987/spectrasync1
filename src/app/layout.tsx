@@ -2,7 +2,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { CommunityProvider } from '@/context/community-context';
 
 export default function RootLayout({
   children,

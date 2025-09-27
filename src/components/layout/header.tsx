@@ -8,7 +8,6 @@ import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
-import { useCommunity } from "@/context/community-context";
 
 type Notification = {
     title: string;
@@ -16,15 +15,20 @@ type Notification = {
     href: string;
 }
 
-export function AppHeader({ initialNotifications }: { initialNotifications: Notification[] }) {
-  const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+interface AdminGuild {
+  id: string;
+  name: string;
+  icon: string | null;
+}
+
+interface AppHeaderProps {
+  notifications: Notification[];
+  selectedGuild: string | null;
+  adminGuilds: AdminGuild[];
+}
+
+export function AppHeader({ notifications, selectedGuild, adminGuilds }: AppHeaderProps) {
   const { state } = useSidebar();
-  const { selectedGuild, adminGuilds } = useCommunity();
-
-  useEffect(() => {
-    setNotifications(initialNotifications);
-  }, [initialNotifications]);
-
   const guildInfo = adminGuilds.find(g => g.id === selectedGuild);
   
   return (
