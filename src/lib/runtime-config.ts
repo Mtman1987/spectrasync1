@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { homedir } from "node:os";
 
 let cached: Record<string, unknown> | null = null;
 let lastFetched = 0;
@@ -30,6 +31,8 @@ const LOCAL_CONFIG_CANDIDATES = [
   path.join("config", "runtime-config.json"),
   ".runtime-config.json",
 ];
+
+const ADC_FILENAME = "application_default_credentials.json";
 
 let localConfigCache: Record<string, unknown> | null = null;
 let localConfigResolved = false;
@@ -128,7 +131,35 @@ export function hasFirebaseCredentials(): boolean {
       process.env.FIREBASE_CONFIG,
   );
 
-  return runningOnGoogleCloud;
+  if (runningOnGoogleCloud) {
+    return true;
+  }
+
+  const adcCandidatePaths: (string | undefined)[] = [];
+
+  if (process.env.CLOUDSDK_CONFIG) {
+    adcCandidatePaths.push(path.join(process.env.CLOUDSDK_CONFIG, ADC_FILENAME));
+  }
+
+  const homeDir = process.env.HOME || homedir();
+  if (homeDir) {
+    adcCandidatePaths.push(path.join(homeDir, ".config", "gcloud", ADC_FILENAME));
+  }
+
+  if (process.platform === "win32") {
+    const appData = process.env.APPDATA;
+    if (appData) {
+      adcCandidatePaths.push(path.join(appData, "gcloud", ADC_FILENAME));
+    }
+  }
+
+  for (const candidate of adcCandidatePaths) {
+    if (candidate && existsSync(candidate)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export async function fetchRuntimeConfig(force = false): Promise<Record<string, unknown>> {
