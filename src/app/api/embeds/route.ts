@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { getRaidPile, getRaidTrain, getCommunityPoolVips } from "@/app/actions/read";
 import { buildCalendarEmbed } from "@/app/calendar/actions";
 import { buildLeaderboardEmbed } from "@/app/leaderboard/actions";
-import { getLiveVipUsers, getTwitchClips } from "@/app/actions";
+import { getLiveVipUsers } from "@/app/actions";
 import { deleteDiscordMessages, validateBotSecret } from "@/lib/bot-utils";
 
 import { getRuntimeValue } from "@/lib/runtime-config";
@@ -192,171 +192,23 @@ function delay(ms: number) {
 // Add this helper function at the top of your file or in a shared utils file.
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-/**
- * Generates a GIF preview for a Twitch clip of a VIP using the FreeConvert API.
- * It fetches the latest clip for the VIP, generates a GIF, and caches the result.
- *
- * @param vip The VIP user object. Must contain `twitchId` and `displayName`.
- * @returns A promise that resolves to a ClipPreview object.
- */
-async function getClipPreview(vip: LiveUser): Promise<ClipPreview> {
-  try {
-    // 1. Fetch the latest clip from Twitch
-    const clips = await getTwitchClips(vip.twitchId, 1);
-    if (!clips || !clips.length) {
-      return { sourceClipUrl: null, gifUrl: null, note: "No recent clips found." };
-    }
-    const clip = clips[0];
-    const username = vip.displayName;
-
-    // 2. Check cache (using Firestore)
-    const { getAdminDb } = await import('@/lib/firebase-admin');
-    const db = await getAdminDb();
-    const cacheRef = db.collection("gifPreviews").doc(clip.id);
-    const cacheDoc = await cacheRef.get();
-    if (cacheDoc.exists) {
-      const data = cacheDoc.data();
-      if (data?.gifUrl) {
-        console.log(`[Cache HIT] Using cached GIF for clip ${clip.id}`);
-        return {
-          sourceClipUrl: `https://clips.twitch.tv/${clip.id}`,
-          gifUrl: data.gifUrl,
-          note: "from cache",
-        };
-      }
-    }
-
-    console.log(`[Cache MISS] Generating new GIF for clip ${clip.id} for user ${username}`);
-
-    const apiKey = await getRuntimeValue<string>("FREE_CONVERT_API_KEY", process.env.FREE_CONVERT_API_KEY);
-    if (!apiKey) {
-      return { sourceClipUrl: null, gifUrl: null, note: "FreeConvert API key missing." };
-    }
- 
-    // 3. Construct the MP4 URL from the Twitch clip's thumbnail URL or use any available video url.
-    let mp4Url: string | null = null;
-    if (typeof (clip as any).video_url === "string" && (clip as any).video_url.trim()) {
-      mp4Url = (clip as any).video_url;
-    } else if (typeof clip.thumbnail_url === "string" && clip.thumbnail_url.includes("-preview-")) {
-    } else if (typeof clip.thumbnail_url === "string" && clip.thumbnail_url.trim()) {
-      // Try the common Twitch pattern first
-      mp4Url = clip.thumbnail_url.replace(/-preview-\d+x\d+\.jpg$/, ".mp4");
-      // If the replacement didn't change the string, try a more permissive fallback
-      if (mp4Url === clip.thumbnail_url) {
-        mp4Url = clip.thumbnail_url.replace(/\.jpg$/, ".mp4");
-      }
-    }
- 
-    if (!mp4Url) {
-      return { sourceClipUrl: null, gifUrl: null, note: "Unable to derive MP4 URL for the clip." };
-    }
-
-    // 4. Define the job payload for the FreeConvert API.
-    const jobPayload = {
-      tasks: {
-        "import-url": { operation: "import/url", url: mp4Url },
-        "convert-gif": {
-          operation: "convert",
-          input: "import-url",
-          input_format: "mp4",
-          output_format: "gif",
-          options: {
-            video_custom_width_gif: 400,
-            gif_fps: "15",
-            video_to_gif_compression: "80",
-            video_to_gif_optimize_static_bg: false,
-            video_to_gif_transparency: false,
-          },
-        },
-        "export-url": {
-          operation: "export/url",
-          input: ["convert-gif"],
-          filename: `${clip.id}-preview.gif`,
-        },
-      },
-    };
-
-    // 5. Create the job on FreeConvert.
-    const createJobResponse = await fetch("https://api.freeconvert.com/v1/process/jobs", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(jobPayload)
-    });
-
-    if (!createJobResponse.ok) {
-      const errorText = await createJobResponse.text();
-      throw new Error(`FreeConvert job creation failed with status ${createJobResponse.status}: ${errorText}`);
-    }
-
-  const job = await createJobResponse.json();
-  const jobId = job?.id ?? job?.job?.id; // Handle different possible response shapes
-    console.log(`Started FreeConvert job ${jobId} for clip ${clip.id}`);
-
-    // 6. Poll for job completion.
-    const maxRetries = 24; // Poll for a maximum of 24 * 5 = 120 seconds.
-    for (let i = 0; i < maxRetries; i++) {
-      await sleep(5000); // Wait 5 seconds between polls.
-
-      const statusResponse = await fetch(`https://api.freeconvert.com/v1/process/jobs/${jobId}`, {
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${apiKey}`,
+async function getGifForVip(vip: LiveUser, guildId: string): Promise<string | null> {
+    if (!vip.twitchId) return null;
+    try {
+        const { getAdminDb } = await import('@/lib/firebase-admin');
+        const db = await getAdminDb();
+        const gifsSnapshot = await db.collection(`communities/${guildId}/users/${vip.twitchId}/generatedGifs`).get();
+        if (gifsSnapshot.empty) {
+            return null;
         }
-      });
-
-      if (!statusResponse.ok) {
-        const errorText = await statusResponse.text().catch(() => 'Unknown error');
-        console.warn(`Failed to get job status for ${jobId} (status: ${statusResponse.status}), retrying... Error: ${errorText}`);
-        continue;
-      }
-
-      const jobStatus = await statusResponse.json();
-
-      if (jobStatus.status === "completed") {
-        // Tasks may be returned as an array or keyed object depending on the response shape.
-        const tasksArray = Array.isArray(jobStatus.tasks) ? jobStatus.tasks : Object.values(jobStatus.tasks ?? {});
-
-        // Try to find an export task that contains a usable URL in a few possible shapes.
-        const exportTask = tasksArray.find((task: any) => task?.operation === "export/url");
-
-        const gifUrl =
-          exportTask?.result?.url ??
-          exportTask?.result?.files?.[0]?.url ??
-          exportTask?.result?.files?.[0]?.url_secure ??
-          null;
-        if (gifUrl) {
-          // 7. Cache the result and return.
-          await cacheRef.set({ gifUrl, createdAt: new Date().toISOString() });
-          console.log(`Successfully generated and cached GIF for clip ${clip.id}`);
-          return {
-            sourceClipUrl: `https://clips.twitch.tv/${clip.id}`,
-            gifUrl: gifUrl,
-            note: null,
-          };
-        }
-
-        throw new Error(`FreeConvert job ${jobId} completed, but no export URL was found (unexpected task shape).`);
-      }
-
-      if (jobStatus.status === "failed") {
-        const tasksArray = Array.isArray(jobStatus.tasks) ? jobStatus.tasks : Object.values(jobStatus.tasks ?? {});
-        const failedTask = tasksArray.find((t: any) => t?.status === "failed");
-        const reason = failedTask?.result?.message ?? jobStatus?.error ?? "Unknown reason";
-        throw new Error(`FreeConvert job ${jobId} failed: ${reason}`);
-      }
+        const gifs = gifsSnapshot.docs.map(doc => doc.data().gifUrl);
+        return gifs[Math.floor(Math.random() * gifs.length)] || null;
+    } catch (error) {
+        console.error(`Error fetching GIF for ${vip.displayName}:`, error);
+        return null;
     }
-
-    throw new Error(`FreeConvert job ${jobId} timed out after ${maxRetries * 5} seconds.`);
-  } catch (error) {
-    console.error(`Error creating clip preview for ${sanitizeForLog(vip.displayName)}:`, error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return { sourceClipUrl: null, gifUrl: null, note: `Failed to generate GIF: ${message}` };
-  }
 }
+
 
 function pickVipTarget(liveVips: LiveUser[], payload: EmbedRequestPayload) {
   const requestedId = typeof payload.vipId === "string" ? payload.vipId : undefined;
@@ -444,14 +296,15 @@ async function buildVipLiveEmbed(payload: EmbedRequestPayload): Promise<EmbedRes
   } else {
     const vipsToProcess = ordered.slice(0, MAX_VIP_CARDS);
 
-    // Fetch all clip previews in parallel
-    const clipPreviews = await Promise.all(vipsToProcess.map((vip) => getClipPreview(vip)));
+    // Fetch all gifs in parallel
+    const gifUrls = await Promise.all(
+        vipsToProcess.map(vip => getGifForVip(vip, guildId))
+    );
 
     vipsToProcess.forEach((vip, index) => {
       const viewerCount = typeof vip.latestViewerCount === "number" ? vip.latestViewerCount : 0;
       const startedAtText = formatStartedAt(vip.started_at);
-      const clipPreview = clipPreviews[index]; // Use the fetched preview
-
+      
       const fields: Array<{ name: string; value: string; inline?: boolean }> = [
         { name: "Streaming", value: vip.latestGameName || "N/A", inline: true },
         { name: "Viewers", value: `${viewerCount}`, inline: true },
@@ -471,25 +324,10 @@ async function buildVipLiveEmbed(payload: EmbedRequestPayload): Promise<EmbedRes
         footer: { text: `Live since ${startedAtText}` },
         timestamp: isoNow,
       };
-
-      // Add the GIF to the embed if we got one
-      if (clipPreview.gifUrl) {
-        embed.image = { url: clipPreview.gifUrl };
-      }
-
-      // If there's a note (e.g., an error), add it to the footer for debugging.
-      // Access the existing footer text safely (EmbedObject is a loose Record),
-      // then replace the footer with a new object containing the combined text.
-      if (clipPreview.note) {
-        const existingFooterText =
-          embed.footer && typeof embed.footer === "object" && "text" in embed.footer && typeof (embed.footer as any).text === "string"
-            ? (embed.footer as any).text
-            : "";
-
-        embed.footer = {
-          ...(embed.footer as Record<string, unknown>),
-          text: `${existingFooterText}${existingFooterText ? " • " : ""}${clipPreview.note}`,
-        };
+      
+      const gifUrl = gifUrls[index];
+      if (gifUrl) {
+          embed.image = { url: gifUrl };
       }
 
       cardEmbeds.push(embed);
@@ -503,7 +341,7 @@ async function buildVipLiveEmbed(payload: EmbedRequestPayload): Promise<EmbedRes
         latestViewerCount: typeof vip.latestViewerCount === "number" ? vip.latestViewerCount : null,
         startedAt: vip.started_at ?? null,
         vipMessage: vip.vipMessage ?? null,
-        clip: clipPreview,
+        gifUrl: gifUrl
       });
     });
 
@@ -928,3 +766,5 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   return handleEmbedRequest(request);
 }
+
+    
