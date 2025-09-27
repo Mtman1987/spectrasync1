@@ -1,7 +1,10 @@
+
 import { Suspense } from 'react';
 import { getSession } from './actions';
 import { redirect } from 'next/navigation';
 import { isRedirectError } from 'next/dist/client/components/redirect';
+import { ManualLoginForm } from '@/components/manual-login-form';
+import { Separator } from '@/components/ui/separator';
 
 async function HomePage() {
   try {
@@ -12,9 +15,9 @@ async function HomePage() {
     }
     
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-        <div className="text-center space-y-8 p-8">
-          <h1 className="text-6xl font-bold text-white mb-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white">
+        <div className="text-center space-y-8 p-8 bg-black/20 rounded-lg shadow-2xl backdrop-blur-sm">
+          <h1 className="text-6xl font-bold mb-4">
             Cosmic Raid
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
@@ -31,6 +34,16 @@ async function HomePage() {
               Get started by connecting your Discord account
             </p>
           </div>
+          
+          <Separator className="bg-white/20 my-8" />
+
+          <div>
+             <p className="text-sm text-gray-400 mb-2">
+                For development or testing, you can log in manually:
+            </p>
+            <ManualLoginForm />
+          </div>
+
         </div>
       </div>
     );
